@@ -46,10 +46,6 @@ Designed packet structure:
   
   <tbody>
     <tr>
-      <td align="center">Source Port</td>
-      <td align="center">Destination Port</td>
-    </tr>
-    <tr>
       <td align="center" colspan=2>Sequence Number</td>
     </tr>
     <tr>
