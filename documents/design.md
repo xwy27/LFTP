@@ -53,6 +53,8 @@ Designed packet structure:
     </tr>
     <tr>
       <td align="center">Flag Field<br>(ACK, RST, SYN, FIN)</td>
+    </tr>
+    <tr>
       <td align="center">Receive Window</td>
     </tr>
     <tr>

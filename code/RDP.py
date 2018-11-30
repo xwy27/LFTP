@@ -1,4 +1,3 @@
-# TODO: decode data received from bytes to str and recover into packet
 import socket
 import random
 
@@ -8,14 +7,15 @@ class Flag():
   '''
   Flag field(ACK, RST, SYN, FIN) for packet header
   '''
-  def __init__(self, ACK = False, RST = False, SYN = False, FIN = False):
+  def __init__(self, ACK = 0, RST = 0, SYN = 0, FIN = 0):
     self.ACK = ACK
     self.RST = RST
     self.SYN = SYN
     self.FIN = FIN
   
   def __str__(self):
-    return (str(self.ACK) + str(self.SYN) + str(self.FIN) + str(self.RST))
+    return (str(self.ACK) + utils.delimeter + str(self.SYN) +
+      utils.delimeter + str(self.FIN) + utils.delimeter + str(self.RST))
 
   def getStr(self):
     return self.__str__()
@@ -33,8 +33,8 @@ class packet_header():
     self.checksum = checksum
   
   def __str__(self):
-    return (str(self.SeqNum) + str(self.ACKNum) + self.Flag.getStr() +
-      str(self.rwnd) + str(self.checksum))
+    return (str(self.SeqNum) + utils.delimeter + str(self.ACKNum) + utils.delimeter +
+      self.Flag.getStr() + utils.delimeter +  str(self.rwnd) + utils.delimeter + str(self.checksum))
   
   def getStr(self):
     return self.__str__()
@@ -48,7 +48,7 @@ class packet():
     self.data = data
   
   def __str__(self):
-    return (self.packet_header.getStr() + str(self.data))
+    return (self.packet_header.getStr() + utils.delimeter + str(self.data))
   
   def getStr(self):
     return self.__str__()
@@ -57,11 +57,12 @@ class RDP():
   '''
   Create a socket running RDP at addr:port
   '''
-  def __init__(self, addr="localhost", port=10000):
+  def __init__(self, addr='localhost', port=10000, client=False):
     self.sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
     self.localAddr = (addr, port)
-    self.sock.bind(self.localAddr)  # Bind local addr for sock
-    self.sock.settimeout(2) # set timeout seconds
+    if not client:
+      self.sock.bind(self.localAddr)  # Bind local addr for sock
+    self.sock.settimeout(10) # set timeout seconds
     print('RDP running on %s:%s' %self.localAddr)
     
     self.csAddr = ('', 0) # Bind client or server address
@@ -87,19 +88,21 @@ class RDP():
     return self.sock.recv(bufferSize)
 
   def makeConnection(self, addr, port):
+    addr = '127.0.0.1' if (addr == 'localhost') else addr
     # Send SYN Packet
     print('Start handshake with server(%s:%s)' %(addr, port))
-    flag = Flag(SYN=True)
+    flag = Flag(SYN=1)
     seq = random.randint(1, 10)
     header = packet_header(SeqNum=seq, Flag=flag)
     pkt = packet(header, '')
+    print('Send SYN to server(%s:%s): %s' %(addr, port, pkt.getStr()))
     self.sock.sendto(pkt.getStr().encode(), (addr, port))
-    
+
     cnt = 0
     while True:
       # Wait ACK Packet
       try:
-        data, rcv_addr = self.sock.recvfrom(1024)
+        rcv_data, rcv_addr = self.sock.recvfrom(1024)
       except:
         # No confirm SYN packet, resend SYN
         if cnt < 5:
@@ -107,21 +110,28 @@ class RDP():
           pkt = packet(header, '')
           self.sock.sendto(pkt.getStr().encode(), (addr, port))
           cnt += 1
+          continue
         else:
           print('ERROR:\nHandshake with server(%s:%s) failed with server ERROR!' %(addr, port))
           break
-
-      if (rcv_addr != (addr, port) or\
-        not data.packet_header.Flag.ACK or\
-        data.packet_header.ACK != seq):
+        
+      # rcv_data, rcv_addr = self.sock.recvfrom(1024)
+      data = rcv_data.decode()
+      print('Packet from (%s): %s' %(rcv_addr, data))
+      decode_ackNum = data.split('$')[1]
+      decode_ack = data.split('$')[2]
+      # not from server or not ACK or not ACK sent packet seqNum, drop rcv_packet
+      if (rcv_addr != (addr, port) or not int(decode_ack) or int(decode_ackNum) != seq):
         continue
       
       # ACK received, send ACK Packet
-      new_port = data.data
-      flag = Flag(ACK=True)
+      new_port = data.split('$')[-1]
+      flag = Flag(ACK=1)
       seq = seq + 1
-      header = packet_header(SeqNum=seq, ACKNum=data.packet_header.SeqNum, Flag=flag)
+      decode_seqNum = data.split('$')[0]
+      header = packet_header(SeqNum=seq, ACKNum=decode_seqNum, Flag=flag)
       pkt = packet(header, '')
+      print('ACK confirmed, send ACK to server(%s): %s' %(rcv_addr, pkt.getStr()))
       self.sock.sendto(pkt.getStr().encode(), (addr, port))
       # Handshake finish
       self.csAddr = (addr, new_port)
@@ -131,25 +141,40 @@ class RDP():
   def listen(self, num):
     self.seq = {}
     self.cnt = 0
+    # self.clientPort = {}
+    self.new_port = {}
     while True:
       if (self.cnt < num):
         try:
-          data, rcv_addr = self.sock.recvfrom(1024)
-          # SYN Connect Request, send ACK and wait
-          if (data.packet_header.Flag.SYN):
-            flag = Flag(ACK=True)
-            self.seq[rcv_addr] = random.randint(1, 10)
-            header = packet_header(SeqNum=self.seq[rcv_addr], ACKNum=data.packet_header.SeqNum, Flag=flag)
-            pkt = packet(header, '')
-            self.sock.sendto(pkt.getStr().encode(), rcv_addr)
-          # ACK receive, check if sent SYN
-          if (data.packet_header.Flag.ACK and rcv_addr in self.seq and\
-            data.packet_header.ACKNum == self.seq[rcv_addr]):
-            self.cnt += 1
-            new_port = utils.getPort()
-            self.clientSock.append([rcv_addr, RDP(port=(new_port+random.randint(1,1000)))])
+          rcv_data, rcv_addr = self.sock.recvfrom(1024)
         except:
           continue
+        
+        data = rcv_data.decode()
+        decode_syn = data.split('$')[3]
+        decode_ack = data.split('$')[2]
+        # SYN Connect Request, send ACK and wait
+        decode_seqNum = int(data.split('$')[0])
+        if (int(decode_syn)):
+          flag = Flag(ACK=1)
+          self.seq[rcv_addr] = random.randint(1, 10)
+          print('SYN from client(%s): %s' %(rcv_addr, data))
+          self.new_port[rcv_addr] = utils.getPort()
+          header = packet_header(SeqNum=self.seq[rcv_addr], ACKNum=decode_seqNum, Flag=flag) 
+          pkt = packet(header, self.new_port[rcv_addr])
+          print('ACK to client(%s): %s' %(rcv_addr, pkt.getStr()))
+          self.sock.sendto(pkt.getStr().encode(), rcv_addr)
+        # ACK receive, check if sent SYN
+        decode_ackNum = data.split('$')[1]
+        print('ACK from client(%s): %s' %(rcv_addr, data))
+        
+        if (int(decode_ack) and rcv_addr in self.seq and
+          int(decode_ackNum) == self.seq[rcv_addr]):
+          if (rcv_addr not in self.new_port):
+            self.cnt += 1
+            print('Handshake finish with client(%s): %s' %(rcv_addr, data))
+            self.clientSock.append([rcv_addr, RDP(port=(self.new_port[rcv_addr]))])
+            print('Ports for handshake client:', self.clientSock)
 
   def accept(self):
     self.cnt -= 1
