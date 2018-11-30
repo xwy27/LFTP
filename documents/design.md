@@ -58,10 +58,53 @@ Designed packet structure:
       <td align="center">Receive Window</td>
     </tr>
     <tr>
-      <td align="center" colspan=2>CheckSum</td>
-    </tr>
-    <tr>
       <td align="center" colspan=2>Data</td>
     </tr>
   </tbody>
 </table>
+
+## Example of Using RDP
+
+- Server
+  
+  ```python
+  from rdp import *
+  server = RDP(addr=serverRunningAddress, port=serverRunningPORT)
+  server.listen(num) # Dead loop
+
+  connectSock = server.accept()
+  while True:
+    data = connectSock.rdp_recv(bufferSize)
+    # Analysis data command
+    if getFileCommand:
+      if connectSock.rdp_send(okCommand):
+        connectSock.rdp_send(file)
+    else if sendFileCommand:
+      if connectSock.rdp_send(okCommand):
+        connectSock.rdp_recv(bufferSize)
+    else if quitCommand:
+      connectSock.release()
+  ```
+
+- Client
+
+  ```python
+  from rdp import *
+  client = RDP(Client=True)
+
+  client.makeConnection(addr=ServerAddress, port=serverPort)
+  if client.rdp_send(sendFileCommand):
+    data = rdp_recv(bufferSize)
+    if data == ok:
+      client.rdp_send(file)
+  if client.rdp_send(GetFileCommand):
+    data = client.rdp_recv(bufferSize)  # Get file
+    if data == ok:
+      file = client.rdp_recv(bufferSize):  # Get file
+      
+  
+  client.rdp_send(data:quitCommand) # End connection with server
+
+  # Finally release socket
+  client.release()
+  ```
