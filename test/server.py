@@ -1,8 +1,8 @@
 # -*- coding:utf-8 -*-
-from rdp import *
 import sys
 import threading
 sys.path.append("../code")
+from rdp import *
 
 server = RDP(port=8080)
 num = 2
@@ -18,5 +18,10 @@ while connSocket == None:
 
 print('Online')
 while True:
+
+    data = connSocket.rdp_recv(0)
+    print(data)
+    
     data = connSocket.rdp_recv(1024)
     print(data)
+

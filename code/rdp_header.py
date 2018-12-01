@@ -4,18 +4,19 @@ import utils
 
 class Flag():
     '''
-    Flag field(ACK, RST, SYN, FIN) for packet header
+    Flag field(ACK, RST, SYN, FIN, WRW) for packet header
     '''
 
-    def __init__(self, ACK=0, RST=0, SYN=0, FIN=0):
+    def __init__(self, ACK=0, RST=0, SYN=0, FIN=0, WRW=0):
         self.ACK = ACK
         self.RST = RST
         self.SYN = SYN
         self.FIN = FIN
+        self.WRW = WRW
 
     def __str__(self):
-        return (str(self.ACK) + utils.delimeter + str(self.SYN) +
-                utils.delimeter + str(self.FIN) + utils.delimeter + str(self.RST))
+        return (str(self.ACK) + utils.delimeter + str(self.SYN) + utils.delimeter + str(self.FIN) +
+            utils.delimeter + str(self.RST) + utils.delimeter + str(self.WRW))
 
     def getStr(self):
         return self.__str__()

@@ -1,7 +1,7 @@
 # -*- coding:utf-8 -*-
-from rdp import *
 import sys
 sys.path.append("../code")
+from rdp import *
 
 client = RDP(client=True)
 client.makeConnection(addr='localhost', port=8080)

@@ -22,21 +22,21 @@ class RDP():
         self.csAddr = ('', 0)  # Bind client or server address
         self.sock.settimeout(1)  # set timeout seconds
 
-        self.MSS = 2  # Max Sending Size
+        self.MSS = 500  # Max Sending Size
         self.sendWindowSize = 4  # max size of the sending window
         self.recvWindowSize = 4  # max size of the receiving window
 
         # self.lastAck = 0  # for sender to check the last ack packet in pipline
         # self.lastSend = 0 # for sender to check the last send packet in pipline
-        
+
         self.rcv_base = 0  # for receiver to check the hoping receive pkt
-        
+
         # ATTENTION:
         # Once invoked the rdp_recv(bufferSize) function, at most bufferSize data is returned
         # So the lastByteRead is always zero and the len(rcv_buffer) is the lastByteRecv
         # The rwnd = BufferSize - (lastByteRecv - lastByteRead) = BufferSize - len(rcv_buffer)
-        self.rcv_buffer = '' # buffer for rcv_data
-        self.rcv_bufferSize = 4096 # buffer size
+        self.rcv_buffer = ''  # buffer for rcv_data
+        self.rcv_bufferSize = 4096  # buffer size
 
         self.clientSock = []  # Activate sockets for server to serve client
 
@@ -106,15 +106,18 @@ class RDP():
                 # print('SEND: ACK pkt(ACKNum:%d, windowIndex:%d, lastACK:%d, lastSend:%d)' % (
                 #     int(decode_ackNum), ack_index, lastAck, lastSend))
                 if (ack_index > lastAck and ack_index < lastSend):
-                    decode_rwnd = decode_data.split('$')[6]
-                    self.sendWindowSize  = decode_rwnd # Update sending window size
+                    decode_rwnd = decode_data.split('$')[7]
+                    # Update sending window size
+                    self.sendWindowSize = int(decode_rwnd)
                     window[window_index] = 1
                     print(
                         'SEND: Fragment-%d sends successfully!(Waiting to move window...)' % ack_index)
                 elif (ack_index == lastAck):
-                    print('SEND: Fragment-%d sends successfully!(Move Window)' % ack_index)
-                    decode_rwnd = decode_data.split('$')[6]
-                    self.sendWindowSize  = decode_rwnd # Update sending window size
+                    print(
+                        'SEND: Fragment-%d sends successfully!(Move Window)' % ack_index)
+                    decode_rwnd = decode_data.split('$')[7]
+                    # Update sending window size
+                    self.sendWindowSize = int(decode_rwnd)
                     window[window_index] = 1
                     for w in window:
                         if int(w):
@@ -122,18 +125,53 @@ class RDP():
                             w = 0
                         else:
                             break
-                    if self.sendWindowSize != 0:
-                        while lastSend < total_pkt and lastSend - lastAck < self.sendWindowSize:
-                            seqNum = origin_seq + self.MSS * lastSend
-                            print('SEND: Begin sending Fragment-%d(SeqNum:%d)...' %
-                                (lastSend, seqNum))
-                            header = packet_header(SeqNum=seqNum, Flag=Flag())
-                            pkt = packet(packet_header=header,
-                                        data=data_packets[lastSend])
-                            self.sock.sendto(pkt.getStr().encode(), self.csAddr)
-                            lastSend += 1
-                    else:
-                        pass
+
+                    if self.sendWindowSize == 0:  # Start waiting rwnd
+                        print('SEND: Waiting for receiver to have buffer(rwnd)')
+                        rwnd_seq = 0
+                        while True:
+                            rwnd_flag = Flag(WRW=1)
+                            rwnd_header = packet_header(
+                                SeqNum=rwnd_seq, Flag=rwnd_flag)
+                            rwnd_pkt = packet(
+                                packet_header=rwnd_header, data='')
+                            self.sock.sendto(
+                                rwnd_pkt.getStr().encode(), self.csAddr)
+                            try:
+                                rwnd_data, rwnd_addr = self.sock.recvfrom(1024)
+                            except:
+                                continue
+
+                            rwnd_decode_data = rwnd_data.decode()
+                            rwnd_AckNum = rwnd_decode_data.split('$')[1]
+                            rwnd_Ack = rwnd_decode_data.split('$')[2]
+                            is_rwnd = rwnd_decode_data.split('$')[6]
+                            if (int(is_rwnd)):  # rwnd waiting packet
+                                # ACK last sent rwnd wait packet
+                                if (int(rwnd_Ack) and int(rwnd_AckNum) == rwnd_seq):
+                                    rwnd_val = int(
+                                        rwnd_decode_data.split('$')[7])
+                                    if (rwnd_val != 0):  # rwnd not zero, recover to send data
+                                        self.sendWindowSize = rwnd_val
+                                        break
+                                    else:  # Still waiting and increase wait pkt seq num
+                                        rwnd_seq += 1
+                            else:  # Not rwnd waiting pkt
+                                # if delayed previous data pkt ack, update window state
+                                if (ack_index >= lastAck and ack_index < lastSend):
+                                    window[window_index] = 1
+                                    print(
+                                        'SEND: Fragment-%d sends successfully!' % ack_index)
+
+                    while lastSend < total_pkt and lastSend - lastAck < self.sendWindowSize:
+                        seqNum = origin_seq + self.MSS * lastSend
+                        print('SEND: Begin sending Fragment-%d(SeqNum:%d)...' %
+                              (lastSend, seqNum))
+                        header = packet_header(SeqNum=seqNum, Flag=Flag())
+                        pkt = packet(packet_header=header,
+                                     data=data_packets[lastSend])
+                        self.sock.sendto(pkt.getStr().encode(), self.csAddr)
+                        lastSend += 1
                 if lastAck == total_pkt - 1:
                     print('SEND: Data sends successfully')
                     print('-'*15, ' END SEND ', '-'*15, '\n')
@@ -151,6 +189,13 @@ class RDP():
         When the remote end is closed and all data is read, return the empty string.
         '''
         # TODO: When to reset rcv_base
+        if size > self.rcv_bufferSize: # Less than buffersize
+            raise ValueError
+        if size == 0: # Not retrieve data
+            return ''
+        if ((self.rcv_bufferSize - (len(self.rcv_buffer) - size)) <= 0): # Retrieve data but buffer still filled
+            return self.rcv_buffer[:size]
+
         window = [[0, ''] * self.recvWindowSize]
         cnt = 0
         ack_cnt = 0
@@ -172,75 +217,89 @@ class RDP():
             if (rcv_addr == self.csAddr):  # From client/server pkt
                 decode_data = rcv_data.decode()
                 decode_seqNum = int(decode_data.split('$')[0])
-                back_ack = self.rcv_base - self.recvWindowSize * self.MSS
-                if (back_ack >= 0 and decode_seqNum < self.rcv_base and back_ack >= decode_seqNum):
-                    # [rcv_base-N, rcv_bace) pkt, resend ACK in case sender repeat resending
-                    print('RECV: Before window pkt, resend ack...')
+                decode_wrw = int(decode_data.split('$')[6])
+                if (decode_wrw): # Wait rwnd pkt
+                    print('RECV: Waiting rwnd pkt, send ack...')
+                    rwnd_flag = Flag(ACK=1, WRW=1)
                     rwnd = self.rcv_bufferSize-len(self.rcv_buffer)
+                    rwnd = 0 if (rwnd <= 0) else rwnd
                     header = packet_header(
-                        SeqNum=origin_seq+ack_cnt*1, ACKNum=decode_seqNum, Flag=flag, rwnd=rwnd)
+                        SeqNum=origin_seq+ack_cnt*1, ACKNum=decode_seqNum, Flag=rwnd_flag, rwnd=rwnd)
                     pkt = packet(header, '')
                     self.sock.sendto(pkt.getStr().encode(), self.csAddr)
                     ack_cnt += 1
-                elif (decode_seqNum > self.rcv_base and decode_seqNum <= self.rcv_base+(self.recvWindowSize-1)*self.MSS):
-                    # (rcv_base, rcv_base+(N-1)*MSS] pkt, buffer pkt
-                    print('RECV: Inside window pkt(SeqNum:%d), buffer data' %
-                          decode_seqNum)
-                    seq_index = int((decode_seqNum - self.rcv_base)/self.MSS)
+                else: # Not wait rwnd pkt
+                    back_ack = self.rcv_base - self.recvWindowSize * self.MSS
+                    if (back_ack >= 0 and decode_seqNum < self.rcv_base and back_ack >= decode_seqNum):
+                        # [rcv_base-N, rcv_bace) pkt, resend ACK in case sender repeat resending
+                        print('RECV: Before window pkt, resend ack...')
+                        rwnd = self.rcv_bufferSize-len(self.rcv_buffer)
+                        header = packet_header(
+                            SeqNum=origin_seq+ack_cnt*1, ACKNum=decode_seqNum, Flag=flag, rwnd=rwnd)
+                        pkt = packet(header, '')
+                        self.sock.sendto(pkt.getStr().encode(), self.csAddr)
+                        ack_cnt += 1
+                    elif (decode_seqNum > self.rcv_base and decode_seqNum <= self.rcv_base+(self.recvWindowSize-1)*self.MSS):
+                        # (rcv_base, rcv_base+(N-1)*MSS] pkt, buffer pkt
+                        print('RECV: Inside window pkt(SeqNum:%d), buffer data' %
+                            decode_seqNum)
+                        seq_index = int((decode_seqNum - self.rcv_base)/self.MSS)
 
-                    # Buffer data
-                    window[seq_index][0] = 1
-                    temp = ''
-                    for index, val in enumerate(decode_data.split('$')[utils.data_index:]):
-                        if (index == 0):
-                            temp += val
-                        else:
-                            temp = temp + '$' + val
-                    window[seq_index][1] = temp
+                        # Buffer data
+                        window[seq_index][0] = 1
+                        temp = ''
+                        for index, val in enumerate(decode_data.split('$')[utils.data_index:]):
+                            if (index == 0):
+                                temp += val
+                            else:
+                                temp = temp + '$' + val
+                        window[seq_index][1] = temp
 
-                    # ACK data
-                    rwnd = self.rcv_bufferSize-len(self.rcv_buffer)
-                    header = packet_header(
-                        SeqNum=origin_seq+ack_cnt*1, ACKNum=decode_seqNum, Flag=flag, rwnd=rwnd)
-                    pkt = packet(header, '')
-                    self.sock.sendto(pkt.getStr().encode(), self.csAddr)
-                    ack_cnt += 1
+                        # ACK data
+                        rwnd = self.rcv_bufferSize-len(self.rcv_buffer)
+                        rwnd = 0 if (rwnd <= 0) else rwnd
+                        header = packet_header(
+                            SeqNum=origin_seq+ack_cnt*1, ACKNum=decode_seqNum, Flag=flag, rwnd=rwnd)
+                        pkt = packet(header, '')
+                        self.sock.sendto(pkt.getStr().encode(), self.csAddr)
+                        ack_cnt += 1
 
-                if decode_seqNum == self.rcv_base:
-                    print(
-                        'RECV: Window start pkt(SeqNum:%d), return continual data' % decode_seqNum)
-                    rwnd = self.rcv_bufferSize-len(self.rcv_buffer)
-                    header = packet_header(
-                        SeqNum=origin_seq+ack_cnt*1, ACKNum=decode_seqNum, Flag=flag, rwnd=rwnd)
-                    pkt = packet(header, '')
-                    self.sock.sendto(pkt.getStr().encode(), self.csAddr)
-                    ack_cnt += 1
+                    if decode_seqNum == self.rcv_base:
+                        print(
+                            'RECV: Window start pkt(SeqNum:%d), buffer continual data' % decode_seqNum)
+                        rwnd = self.rcv_bufferSize-len(self.rcv_buffer)
+                        header = packet_header(
+                            SeqNum=origin_seq+ack_cnt*1, ACKNum=decode_seqNum, Flag=flag, rwnd=rwnd)
+                        pkt = packet(header, '')
+                        self.sock.sendto(pkt.getStr().encode(), self.csAddr)
+                        ack_cnt += 1
 
-                    # Set data for rcv_base
-                    seq_index = int((decode_seqNum - self.rcv_base)/self.MSS)
-                    window[seq_index][0] = 1
-                    temp = ''
-                    for index, val in enumerate(decode_data.split('$')[utils.data_index:]):
-                        if (index == 0):
-                            temp += val
-                        else:
-                            temp = temp + '$' + val
-                    window[seq_index][1] = temp
+                        # Set data for rcv_base
+                        seq_index = int((decode_seqNum - self.rcv_base)/self.MSS)
+                        window[seq_index][0] = 1
+                        temp = ''
+                        for index, val in enumerate(decode_data.split('$')[utils.data_index:]):
+                            if (index == 0):
+                                temp += val
+                            else:
+                                temp = temp + '$' + val
+                        window[seq_index][1] = temp
 
-                    # Add continual data to buffer
-                    for w in window:
-                        if int(w[0]):
-                            self.rcv_buffer += w[1]
-                            self.rcv_base += self.MSS
-                            w[0] = 0
-                            w[1] = ''
-                        else:
-                            break
-                    
-                    # Return at most size data
-                    data = self.rcv_buffer[:size-1]
-                    self.rcv_buffer = self.rcv_buffer[size:]
-                    return data
+                        # Add continual data to buffer
+                        for w in window:
+                            if int(w[0]):
+                                self.rcv_buffer += w[1]
+                                self.rcv_base += self.MSS
+                                w[0] = 0
+                                w[1] = ''
+                            else:
+                                break
+                        # print('RECV: Buffer: ', self.rcv_buffer)
+
+                        # Return at most size data
+                        data = self.rcv_buffer[:size-1]
+                        self.rcv_buffer = self.rcv_buffer[size:]
+                        return data
         data = self.rcv_buffer[:size-1]
         self.rcv_buffer = self.rcv_buffer[size:]
         return data
@@ -355,7 +414,7 @@ class RDP():
                     self.clientSock.append(
                         [rcv_addr, RDP(port=(self.new_port[rcv_addr]))])
             else:
-                # break
+                break
                 print(
                     'LISTEN: Serving MAX Client. New Client(%s:%s) request abandoned', rcv_addr)
 

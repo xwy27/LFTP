@@ -3,7 +3,7 @@ import socket
 import random
 
 delimeter = '$'
-data_index = 7
+data_index = 8
 
 
 def getPort():
