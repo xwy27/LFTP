@@ -414,7 +414,7 @@ class RDP():
                     self.clientSock.append(
                         [rcv_addr, RDP(port=(self.new_port[rcv_addr]))])
             else:
-                break
+                # break
                 print(
                     'LISTEN: Serving MAX Client. New Client(%s:%s) request abandoned', rcv_addr)
 
@@ -424,7 +424,6 @@ class RDP():
         If no connection, none is returned
         '''
         if (len(self.clientSock) > 0):
-            self.cnt -= 1
             temp = self.clientSock.pop()
             del self.seq[temp[0]]
             temp[1].csAddr = temp[0]  # set client addr
@@ -435,6 +434,7 @@ class RDP():
         '''
         Cancel a client-connected RDP
         '''
+        self.cnt -= 1
         self.sock.close()
 
     def getLocalAddr(self):
