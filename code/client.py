@@ -2,6 +2,8 @@ import RDP
 import sys
 import os
 import os.path
+import base64
+import time
 
 def lSend():
   # Check if file exists
@@ -40,12 +42,16 @@ def lSend():
       print("Error while waiting for response! " + response)
       return
 
-    for line in f:
-      if not client.rdp_send(line):
+    while sentLength != length:
+      line = f.read(1024)
+      if not client.rdp_send(base64.b64encode(line).decode("ASCII")):
         print("Error while sending file %s." % filename)
         return
       sentLength += len(line)
+      print(sentLength)
+      time.sleep(0.5)
       print("Sending file %s: %d%% done." % (filename, sentLength / length * 100))
+    print("Sending done.")
 
 def lGet():
   pass

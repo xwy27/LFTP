@@ -1,0 +1,50 @@
+Stack Overflow
+ 
+Log In Sign Up
+By using our site, you acknowledge that you have read and understand our Cookie Policy, Privacy Policy, and our Terms of Service.
+Home
+PUBLIC
+Stack Overflow
+Tags
+Users
+Jobs
+Teams+Slack
+Q&A for work
+Learn More
+ 
+python base64 encode to string
+Ask Question
+up vote
+0
+down vote
+favorite
+1
+I want to encode some data as Base64, and then have the encoded data concatenated in a string.
+
+when I do:
+
+four=base64.urlsafe_b64encode(bytes(MAIL, "utf-8"))
+print (four)
+result will be:
+
+b'YWxleEBhbGV4LmFsZXg='
+I want to remove the b'' from four. So that only YWxleEBhbGV4LmFsZXg= is shown. How do I go about getting just the string YWxleEBhbGV4LmFsZXg= withouth the byte type?
+
+python string encoding base64
+shareimprove this question
+asked Apr 19 '16 at 9:30
+
+Alexandru Marton
+104
+Just s.decode() – Padraic Cunningham Apr 19 '16 at 9:33
+add a comment
+1 Answer
+active oldest votes
+up vote
+1
+down vote
+accepted
+You have a bytes object; decode it to Unicode:
+
+print(four.decode('ascii'))
+Base64 only us

@@ -57,7 +57,6 @@ class RDP():
         lastSend = 0  # for sender to check the last send packet in pipline
         origin_seq = 0  # origin sequence number
         total_pkt = len(data_packets)  # Total num of data packets to send
-        print(total_pkt)
         # Sender window, 0 for not ack, 1 for ack
         window = [0] * self.sendWindowSize
         while lastSend < total_pkt and lastSend - lastAck < self.sendWindowSize:
@@ -81,14 +80,15 @@ class RDP():
                     for index, win in enumerate(window):
                         if not int(win):
                             pkt_index = index + lastAck
-                            print('SEND: Resending fragment-%d ...' %
-                                  pkt_index)
-                            seqNum = origin_seq + self.MSS * pkt_index
-                            header = packet_header(SeqNum=seqNum, Flag=Flag())
-                            pkt = packet(packet_header=header,
-                                         data=data_packets[pkt_index])
-                            self.sock.sendto(
-                                pkt.getStr().encode(), self.csAddr)
+                            if pkt_index < total_pkt:
+                                print('SEND: Resending fragment-%d ...' %
+                                    pkt_index)
+                                seqNum = origin_seq + self.MSS * pkt_index
+                                header = packet_header(SeqNum=seqNum, Flag=Flag())
+                                pkt = packet(packet_header=header,
+                                            data=data_packets[pkt_index])
+                                self.sock.sendto(
+                                    pkt.getStr().encode(), self.csAddr)
                     timeout_cnt += 1
                     continue
                 else:
@@ -173,7 +173,7 @@ class RDP():
                                      data=data_packets[lastSend])
                         self.sock.sendto(pkt.getStr().encode(), self.csAddr)
                         lastSend += 1
-                if lastAck == total_pkt - 1:
+                if lastAck - 1 == total_pkt - 1:
                     print('SEND: Data sends successfully')
                     print('-'*15, ' END SEND ', '-'*15, '\n')
                     return True
@@ -197,12 +197,15 @@ class RDP():
         if ((self.rcv_bufferSize - (len(self.rcv_buffer) - size)) <= 0):
             return self.rcv_buffer[:size]
 
-        window = [[0, ''] * self.recvWindowSize]
+        # window = [[0, ''] * self.recvWindowSize]
+        window = []
+        for x in range(self.recvWindowSize):
+            window.append([0, ''])
         cnt = 0
         ack_cnt = 0
         flag = Flag(ACK=1)
         origin_seq = random.randint(1, 10)
-        while True:
+        while len(self.rcv_buffer) < size:
             try:
                 rcv_data, rcv_addr = self.sock.recvfrom(1024)
             except:
@@ -248,6 +251,7 @@ class RDP():
                             (decode_seqNum - self.rcv_base)/self.MSS)
 
                         # Buffer data
+                        # print(window)
                         window[seq_index][0] = 1
                         temp = ''
                         for index, val in enumerate(decode_data.split('$')[utils.data_index:]):
@@ -300,9 +304,9 @@ class RDP():
                         # print('RECV: Buffer: ', self.rcv_buffer)
 
                         # Return at most size data
-                        data = self.rcv_buffer[:size-1]
-                        self.rcv_buffer = self.rcv_buffer[size:]
-                        return data
+                        # data = self.rcv_buffer[:size-1]
+                        # self.rcv_buffer = self.rcv_buffer[size:]
+                        # return data
         data = self.rcv_buffer[:size-1]
         self.rcv_buffer = self.rcv_buffer[size:]
         return data

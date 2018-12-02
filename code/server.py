@@ -3,6 +3,7 @@ import sys
 import time
 import threading
 import os.path
+import base64
 
 # Flag to check if the program is going to exit
 exit = False
@@ -56,21 +57,23 @@ def listen(hostname, port):
     
     clientSocket = server.accept()
     if clientSocket != None:
-      threading.Thread(target=handleSocket, args=(clientSocket,))
+      handleThread = threading.Thread(target=handleSocket, args=(clientSocket,))
+      handleThread.start()
 
 # Function to handle the session with a client
 def handleSocket(socket):
   commandPacket = socket.rdp_recv(1024)
-  print("Command received " + commandPacket)
+  socket.resetRecv()
   commandPacket = commandPacket.split("\n")
+  print("Command received " + " ".join(commandPacket))
   if commandPacket[0] == "lget":
     # Sending file
+    pass
+  elif commandPacket[0] == "lsend":
+    # Getting file
     if len(commandPacket) == 3:
       writeFile(commandPacket[1], int(commandPacket[2]), socket)
     releaseSocket(socket)
-  elif commandPacket[0] == "lsend":
-    # Getting file
-    pass
   else:
     return
 
@@ -105,6 +108,7 @@ def writeFile(filename, length, socket):
   if not socket.rdp_send("OK"):
     print("Connection Error: Fail when asking client to send file.")
     wLockDict[filename].release()
+    releaseSocket(socket)
     return 
     
   # Accepted Length
@@ -118,11 +122,11 @@ def writeFile(filename, length, socket):
         break
       # Finish
       if acLength == length:
-        socket.rdp_send("OK")
         print("Receiving %s: Done" % filename)
         break
       # Receive some data
-      data = socket.rdp_recv(1024)
+      metadata = socket.rdp_recv(2048)
+      data = base64.b64decode(metadata.encode("ASCII"))
       socket.resetRecv()
       if len(data) == 0:
         print("Connection Error: Timeout when receiving data.")
