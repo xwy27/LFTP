@@ -188,12 +188,12 @@ class RDP():
         or until the remote end is closed.
         When the remote end is closed and all data is read, return the empty string.
         '''
-        # TODO: When to reset rcv_base
-        if size > self.rcv_bufferSize: # Less than buffersize
+        if size > self.rcv_bufferSize:  # Less than buffersize
             raise ValueError
-        if size == 0: # Not retrieve data
+        if size == 0:  # Not retrieve data
             return ''
-        if ((self.rcv_bufferSize - (len(self.rcv_buffer) - size)) <= 0): # Retrieve data but buffer still filled
+        # Retrieve data but buffer still filled
+        if ((self.rcv_bufferSize - (len(self.rcv_buffer) - size)) <= 0):
             return self.rcv_buffer[:size]
 
         window = [[0, ''] * self.recvWindowSize]
@@ -218,7 +218,7 @@ class RDP():
                 decode_data = rcv_data.decode()
                 decode_seqNum = int(decode_data.split('$')[0])
                 decode_wrw = int(decode_data.split('$')[6])
-                if (decode_wrw): # Wait rwnd pkt
+                if (decode_wrw):  # Wait rwnd pkt
                     print('RECV: Waiting rwnd pkt, send ack...')
                     rwnd_flag = Flag(ACK=1, WRW=1)
                     rwnd = self.rcv_bufferSize-len(self.rcv_buffer)
@@ -228,7 +228,7 @@ class RDP():
                     pkt = packet(header, '')
                     self.sock.sendto(pkt.getStr().encode(), self.csAddr)
                     ack_cnt += 1
-                else: # Not wait rwnd pkt
+                else:  # Not wait rwnd pkt
                     back_ack = self.rcv_base - self.recvWindowSize * self.MSS
                     if (back_ack >= 0 and decode_seqNum < self.rcv_base and back_ack >= decode_seqNum):
                         # [rcv_base-N, rcv_bace) pkt, resend ACK in case sender repeat resending
@@ -242,8 +242,9 @@ class RDP():
                     elif (decode_seqNum > self.rcv_base and decode_seqNum <= self.rcv_base+(self.recvWindowSize-1)*self.MSS):
                         # (rcv_base, rcv_base+(N-1)*MSS] pkt, buffer pkt
                         print('RECV: Inside window pkt(SeqNum:%d), buffer data' %
-                            decode_seqNum)
-                        seq_index = int((decode_seqNum - self.rcv_base)/self.MSS)
+                              decode_seqNum)
+                        seq_index = int(
+                            (decode_seqNum - self.rcv_base)/self.MSS)
 
                         # Buffer data
                         window[seq_index][0] = 1
@@ -275,7 +276,8 @@ class RDP():
                         ack_cnt += 1
 
                         # Set data for rcv_base
-                        seq_index = int((decode_seqNum - self.rcv_base)/self.MSS)
+                        seq_index = int(
+                            (decode_seqNum - self.rcv_base)/self.MSS)
                         window[seq_index][0] = 1
                         temp = ''
                         for index, val in enumerate(decode_data.split('$')[utils.data_index:]):
@@ -303,6 +305,12 @@ class RDP():
         data = self.rcv_buffer[:size-1]
         self.rcv_buffer = self.rcv_buffer[size:]
         return data
+
+    def resetRecv(self):
+        '''
+        Reset the recv state after a transmission.
+        '''
+        self.rcv_base = 0
 
     def makeConnection(self, addr, port):
         '''
@@ -372,7 +380,6 @@ class RDP():
         Listen the server port and wait for handshake client;
         Max successful handshake client number is num
         '''
-        # TODO: New Port list change
         self.seq = {}
         self.cnt = 0
         # self.clientPort = {}
@@ -432,10 +439,22 @@ class RDP():
 
     def release(self):
         '''
-        Cancel a client-connected RDP
+        Cancel a client-connected RDP;
+        Return the sock running address(addr, port)
         '''
+        pair = self.sock.getsockname()
         self.cnt -= 1
         self.sock.close()
+        return pair
+
+    def releasePort(self, port):
+        '''
+        Release the port
+        '''
+        for item in self.new_port.items():
+            if item[1] == port:
+                del self.new_port[item[0]]
+                break
 
     def getLocalAddr(self):
         '''

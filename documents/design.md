@@ -83,7 +83,9 @@ Designed packet structure:
       if connectSock.rdp_send(okCommand):
         connectSock.rdp_recv(bufferSize)
     else if quitCommand:
-      connectSock.release()
+      addr = connectSock.release()
+      # inform the listen server to release the port in addr
+      server.releasePort(addr[1])
   ```
 
 - Client
@@ -99,6 +101,8 @@ Designed packet structure:
       client.rdp_send(file)
   if client.rdp_send(GetFileCommand):
     data = client.rdp_recv(bufferSize)  # Get file
+    # Once finish get the whole file, reset the recv state
+    client.resetRecv()
     if data == ok:
       file = client.rdp_recv(bufferSize):  # Get file
       
