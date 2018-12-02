@@ -12,6 +12,8 @@ class RDP():
     Create a socket running RDP at addr:port
     '''
 
+    exit = False
+
     def __init__(self, addr='localhost', port=10000, client=False):
         self.sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
         if not client:
@@ -70,6 +72,7 @@ class RDP():
 
         timeout_cnt = 0  # counter for timeout
         while True:
+            if exit: return
             try:
                 rcv_data, rcv_addr = self.sock.recvfrom(1024)
             except:
@@ -347,7 +350,8 @@ class RDP():
                 else:
                     print('CONNECT: ERROR:\nHandshake with server(%s:%s) failed with server ERROR!' % (
                         addr, port))
-                    break
+                    print('-'*15, ' END HANDSHAKE ', '-'*15)
+                    return False
 
             data = rcv_data.decode()
             print('CONNECT: Packet from (%s): %s' % (rcv_addr, data))
@@ -371,9 +375,8 @@ class RDP():
             self.csAddr = (addr, int(new_port))
             print('CONNECT: Handshake with server(%s:%s) successfully!' %
                   self.csAddr)
-            break
-
-        print('-'*15, ' END HANDSHAKE ', '-'*15)
+            print('-'*15, ' END HANDSHAKE ', '-'*15)
+            return True
 
     def listen(self, num):
         '''

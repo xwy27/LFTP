@@ -1,8 +1,8 @@
 import RDP
-import utils
 import sys
 import time
 import threading
+import os.path
 
 # Flag to check if the program is going to exit
 exit = False
@@ -40,22 +40,46 @@ def console():
       print("Invalid input.")
 
 def listen(hostname, port):
+  server = RDP.RDP(addr=hostname, port=port)
+  listenThread = threading.Thread(target=server.listen, args=(10,), name="basic listening")
+  listenThread.start()
   while True:
-    # If exit command is given
+    # If the user is trying to exit
     if exit:
-      # If no more threads excepts console() and listen()
-      # is active, stop listen()
+      # Stop the listen thread
+      RDP.RDP.exit = True
       if threading.active_count() == 2:
-        # TODO: Stop listen() here
         break
       else:
         time.sleep(0.5)
         continue
     
+    clientSocket = server.accept()
+    if clientSocket != None:
+      threading.Thread(target=handleSocket, args=(clientSocket,))
+
+# Function to handle the session with a client
+def handleSocket(socket):
+  commandPacket = socket.rdp_recv(1024)
+  print("Command received " + commandPacket)
+  commandPacket = commandPacket.split("\n")
+  if commandPacket[0] == "lget":
+    # Sending file
+    if len(commandPacket) == 3:
+      writeFile(commandPacket[1], int(commandPacket[2]), socket)
+    releaseSocket(socket)
+  elif commandPacket[0] == "lsend":
+    # Getting file
+    pass
+  else:
+    return
+
+def releaseSocket(socket):
+  pass
 
 # Write a file whose name is filename of length
 # Can not happen while others' reading and writing the same file
-def writeFile(filename, length):
+def writeFile(filename, length, socket):
   global wLockDict
   global rLockDict
   global rCountDict
@@ -77,7 +101,36 @@ def writeFile(filename, length):
     while rLockDict[filename] != 0:
       time.sleep(0.5)
 
-  # TODO: Write file here
+  # Tell client to send file
+  if not socket.rdp_send("OK"):
+    print("Connection Error: Fail when asking client to send file.")
+    wLockDict[filename].release()
+    return 
+    
+  # Accepted Length
+  acLength = 0
+
+  with open(filename, "wb") as f:
+    while True:
+      # User want to exit
+      if exit:
+        print("Server is exiting...")
+        break
+      # Finish
+      if acLength == length:
+        socket.rdp_send("OK")
+        print("Receiving %s: Done" % filename)
+        break
+      # Receive some data
+      data = socket.rdp_recv(1024)
+      socket.resetRecv()
+      if len(data) == 0:
+        print("Connection Error: Timeout when receiving data.")
+        break
+      acLength += len(data)
+      print("Receiving %s: %d%% data received..." % (filename, acLength / length * 100))
+      # Write to file
+      f.write(data)
   
   # End of writing
   wLockDict[filename].release()  
@@ -86,12 +139,14 @@ def writeFile(filename, length):
 # Readfile whose name is filename
 # Can only be running after current writing finished
 # Can read files being read by others
-def readFile(filename):
+def readFile(filename, socket):
   global wLockDict
   global rLockDict
   global rCountDict
 
-  # TODO: Check if the file exists
+  if not os.path.exists(filename):
+    socket.rdp_send("Error: File Not Existed!")
+    return
 
   dictLock.acquire()
   if filename not in wLockDict:
@@ -112,11 +167,13 @@ def readFile(filename):
     rLockDict[filename].release()
     wLockDict[filename].release()
   
-  # TODO: Read file here
+  
 
   rLockDict[filename].acquire()
   rCountDict[filename] -= 1
   rLockDict[filename].release()
+
+
 
 
 
