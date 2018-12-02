@@ -127,7 +127,6 @@ def writeFile(filename, length, socket):
       # Receive some data
       metadata = socket.rdp_recv(2048)
       data = base64.b64decode(metadata.encode("ASCII"))
-      socket.resetRecv()
       if len(data) == 0:
         print("Connection Error: Timeout when receiving data.")
         break
@@ -136,6 +135,7 @@ def writeFile(filename, length, socket):
       # Write to file
       f.write(data)
   
+  # socket.resetRecv()
   # End of writing
   wLockDict[filename].release()  
 
