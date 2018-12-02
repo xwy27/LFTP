@@ -28,7 +28,7 @@ rCountDict = {}
 def console():
   global exit
   while True:
-    command = input("$ ")
+    command = input("Type exit to quit the program\n")
     if command == "exit":
       exit = True
       while threading.active_count() != 1:
@@ -40,14 +40,14 @@ def console():
       print("Invalid input.")
 
 def listen(hostname, port):
-  server = RDP.RDP(addr=hostname, port=port)
+  server = RDP.RDP(addr=hostname, port=int(port))
   listenThread = threading.Thread(target=server.listen, args=(10,), name="basic listening")
   listenThread.start()
   while True:
     # If the user is trying to exit
     if exit:
       # Stop the listen thread
-      RDP.RDP.exit = True
+      RDP.exit = True
       if threading.active_count() == 2:
         break
       else:
@@ -110,7 +110,7 @@ def writeFile(filename, length, socket):
   # Accepted Length
   acLength = 0
 
-  with open(filename, "wb") as f:
+  with open("data/" + filename, "wb") as f:
     while True:
       # User want to exit
       if exit:
@@ -144,7 +144,7 @@ def readFile(filename, socket):
   global rLockDict
   global rCountDict
 
-  if not os.path.exists(filename):
+  if not os.path.exists("data/" + filename):
     socket.rdp_send("Error: File Not Existed!")
     return
 
@@ -167,14 +167,10 @@ def readFile(filename, socket):
     rLockDict[filename].release()
     wLockDict[filename].release()
   
-  
 
   rLockDict[filename].acquire()
   rCountDict[filename] -= 1
   rLockDict[filename].release()
-
-
-
 
 
 # Check if Arguments are valid

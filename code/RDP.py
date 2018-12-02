@@ -6,13 +6,12 @@ import enum
 import utils
 from rdp_header import *
 
+exit = False
 
 class RDP():
     '''
     Create a socket running RDP at addr:port
     '''
-
-    exit = False
 
     def __init__(self, addr='localhost', port=10000, client=False):
         self.sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
@@ -54,11 +53,11 @@ class RDP():
         # Split the data
         data_packets = [data[x*self.MSS:x*self.MSS+self.MSS]
                         for x in range(int(len(data)/self.MSS)+1)]
-
         lastAck = 0  # for sender to check the last ack packet in pipline
         lastSend = 0  # for sender to check the last send packet in pipline
         origin_seq = 0  # origin sequence number
         total_pkt = len(data_packets)  # Total num of data packets to send
+        print(total_pkt)
         # Sender window, 0 for not ack, 1 for ack
         window = [0] * self.sendWindowSize
         while lastSend < total_pkt and lastSend - lastAck < self.sendWindowSize:
@@ -72,7 +71,6 @@ class RDP():
 
         timeout_cnt = 0  # counter for timeout
         while True:
-            if exit: return
             try:
                 rcv_data, rcv_addr = self.sock.recvfrom(1024)
             except:
@@ -383,11 +381,14 @@ class RDP():
         Listen the server port and wait for handshake client;
         Max successful handshake client number is num
         '''
+        global exit
         self.seq = {}
         self.cnt = 0
         # self.clientPort = {}
         self.new_port = {}
         while True:
+            if exit: 
+                return
             try:
                 rcv_data, rcv_addr = self.sock.recvfrom(1024)
             except:
