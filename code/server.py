@@ -96,8 +96,8 @@ def releaseSocket(socket):
   global serverLock
 
   serverLock.acquire()
-  # addr = socket.release()
-  # server.releasePort(addr[1])
+  addr = socket.release()
+  server.releasePort(addr[1])
   serverLock.release()
 
 # Write a file whose name is filename of length
