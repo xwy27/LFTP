@@ -170,7 +170,7 @@ def writeFile(filename, length, socket):
       print("Receiving %s: %d%% data received..." % (filename, acLength / length * 100))
       # Write to file
       f.write(data)
-      print("Speed: %d KB/s" % (acLength / (time.time() - start_time) / 1000))
+      print("Speed: %d KB/s" % (acLength / (time.time() - start_time + 0.01) / 1000))
   
   # End of writing
   print("Receiving %s: File Lock Released." % filename)
@@ -237,7 +237,7 @@ def readFile(filename, socket):
         return
       sentLength += len(line)
       print("Sending file %s: %d%% done." % (filename, sentLength / length * 100))
-      print("Speed: %d KB/s" % (sentLength / (time.time() - start_time) / 1000))
+      print("Speed: %d KB/s" % (sentLength / (time.time() - start_time + 0.01) / 1000))
     print("Sending done.")
 
   print("Sending %s: Acquiring Reading Lock..." % filename)
