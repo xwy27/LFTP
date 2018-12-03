@@ -46,7 +46,7 @@ class RDP():
         self.congessState = 0 # Congession control state, 0: slowStart, 1:congessionAvoid, 2:fastRecovery
         self.cwnd = self.MSS # Congession Window
         self.dupACK = 0 # count for duplicate ACK
-        self.ssthresh = 64000 # 
+        self.ssthresh = 64000 # Slow start threshold
 
         self.clientSock = []  # Activate sockets for server to serve client
         self.seq = {} # Sequence Numbers to SYN clients
@@ -104,6 +104,18 @@ class RDP():
                 if timeout_cnt < 5:
                     print('SEND: Timeout for receiving ACK from(%s:%s)...' %
                           self.csAddr)
+
+                    self.ssthresh = int(self.cwnd / 2)
+                    self.cwnd = self.MSS
+                    self.dupACK = 0
+                    if self.congessState == utils.slowState: # timeout for slow start state
+                        if self.cwnd >= self.ssthresh:
+                            self.congessState = utils.avoidState
+                    elif self.congessState == utils.avoidState: # timeout for congestion avoid state
+                        self.congessState = utils.slowState
+                    elif self.congessState == utils.fastState: # timeout for fast recovery state
+                        self.congessState = utils.slowState
+
                     for index, win in enumerate(window):
                         if not int(win):
                             pkt_index = lastAck - origin_seq + index
@@ -132,87 +144,117 @@ class RDP():
             if (int(decode_ack)):
                 ack_index = int(decode_ackNum)
                 window_index = int(decode_ackNum) - lastAck
-                print('SEND: ACK pkt(ACKNum:%d, windowIndex:%d, lastACK:%d, lastSend:%d)' % (
-                    int(decode_ackNum), window_index, lastAck, lastSend))
-                if (ack_index > lastAck and ack_index < lastSend):
-                    decode_rwnd = decode_data.split('$')[7]
-                    # Update sending window size
-                    temp = int(int(decode_rwnd) / self.MSS)
-                    self.sendWindowSize = 0 if temp < 1 else temp
-                    window = self.resetWindow(window, self.sendWindowSize)
-                    window[window_index] = 1
-                    print('WindowIndex: ', window_index)
-                    print(
-                        'SEND: Fragment-%d sends successfully!(Waiting to move window...)' % ack_index)
-                elif (ack_index == lastAck):
-                    print(
-                        'SEND: Fragment-%d sends successfully!(Move Window)' % ack_index)
-                    decode_rwnd = decode_data.split('$')[7]
-                    # Update sending window size
-                    temp = int(int(decode_rwnd) / self.MSS)
-                    self.sendWindowSize = 0 if temp < 1 else temp
-                    window[window_index] = 1
-                    # print('first: ', window[0], ' second: ', window[1])
-                    for index, win in enumerate(window):
-                        if int(win):
-                            lastAck += 1
-                            window[index] = 0
-                        else:
-                            break
-                    window = self.resetWindow(window, self.sendWindowSize)
-                    # print('first: ', window[0], ' second: ', window[1])
+                # print('SEND: ACK pkt(ACKNum:%d, windowIndex:%d, lastACK:%d, lastSend:%d)' % (
+                #     int(decode_ackNum), window_index, lastAck, lastSend))
+                if window[window_index]: # duplicate ACK
+                    if self.congessState == utils.slowState: # dup ACK for slow start state
+                        self.dupACK += 1
+                        if self.dupACK == 3: # turn to fast recovery
+                            self.ssthresh = self.cwnd / 2
+                            self.cwnd = self.ssthresh + 3 * self.MSS
+                            self.congessState = utils.fastState
+                    elif self.congessState == utils.avoidState: # dup ACK for congestion avoid state
+                        self.dupACK += 1
+                        if self.dupACK == 3:
+                            self.ssthresh = int(self.cwnd / 2)
+                            self.cwnd = self.ssthresh + 3 * self.MSS
+                            self.congessState = utils.fastState
+                    elif self.congessState == utils.fastState: # dup ACK for fast recovery state
+                        self.cwnd += self.MSS
+                else: # new ACK
+                    if self.congessState == utils.slowState: # new ACK for slow state
+                        self.cwnd += self.MSS
+                        self.dupACK = 0
+                        if self.cwnd >= self.ssthresh: # turn to congestion avoid
+                            self.congessState = 1
+                    elif self.congessState == utils.avoidState: # new ACK for congestion avoid state
+                        self.cwnd = self.cwnd + int(self.MSS * (self.MSS / self.sendWindowSize))
+                        self.dupACK = 0
+                    elif self.congessState == utils.fastState: # new ACK for fast recovery state
+                        self.cwnd = self.ssthresh
+                        self.dupACK = 0
+                        self.congessState = utils.avoidState
+                    
+                    # ACK between (lastACK, lastSend) which is inside window
+                    if (ack_index > lastAck and ack_index < lastSend):
+                        decode_rwnd = decode_data.split('$')[7]
+                        # Update sending window size with rwnd and cwnd
+                        temp = min(int(decode_rwnd), self.cwnd)
+                        temp = int(temp / self.MSS)
+                        self.sendWindowSize = 0 if temp < 1 else temp
+                        window = self.resetWindow(window, self.sendWindowSize)
+                        window[window_index] = 1
+                        # print('WindowIndex: ', window_index)
+                        print(
+                            'SEND: Fragment-%d sends successfully!(Waiting to move window...)' % ack_index)
+                    elif (ack_index == lastAck): # ACK for lastACK and move window
+                        print(
+                            'SEND: Fragment-%d sends successfully!(Move Window)' % ack_index)
+                        decode_rwnd = decode_data.split('$')[7]
+                        # Update sending window size with rwnd and cwnd
+                        temp = min(self.cwnd, int(decode_rwnd))
+                        temp = int(temp / self.MSS)
+                        self.sendWindowSize = 0 if temp < 1 else temp
+                        window[window_index] = 1
+                        # print('first: ', window[0], ' second: ', window[1])
+                        for index, win in enumerate(window):
+                            if int(win):
+                                lastAck += 1
+                                window[index] = 0
+                            else:
+                                break
+                        window = self.resetWindow(window, self.sendWindowSize)
+                        # print('first: ', window[0], ' second: ', window[1])
 
-                    if self.sendWindowSize == 0:  # Start waiting rwnd
-                        print('SEND: Waiting for receiver to have buffer(rwnd)')
-                        rwnd_seq = 0
-                        while True:
-                            rwnd_flag = Flag(WRW=1)
-                            rwnd_header = packet_header(
-                                SeqNum=rwnd_seq, Flag=rwnd_flag)
-                            rwnd_pkt = packet(
-                                packet_header=rwnd_header, data='')
-                            self.sock.sendto(
-                                rwnd_pkt.getStr().encode(), self.csAddr)
-                            try:
-                                rwnd_data, rwnd_addr = self.sock.recvfrom(1024)
-                            except:
-                                continue
+                        if self.sendWindowSize == 0:  # Start waiting rwnd
+                            print('SEND: Waiting for receiver to have buffer(rwnd)')
+                            rwnd_seq = 0
+                            while True:
+                                rwnd_flag = Flag(WRW=1)
+                                rwnd_header = packet_header(
+                                    SeqNum=rwnd_seq, Flag=rwnd_flag)
+                                rwnd_pkt = packet(
+                                    packet_header=rwnd_header, data='')
+                                self.sock.sendto(
+                                    rwnd_pkt.getStr().encode(), self.csAddr)
+                                try:
+                                    rwnd_data, rwnd_addr = self.sock.recvfrom(1024)
+                                except:
+                                    continue
 
-                            rwnd_decode_data = rwnd_data.decode()
-                            rwnd_AckNum = rwnd_decode_data.split('$')[1]
-                            rwnd_Ack = rwnd_decode_data.split('$')[2]
-                            is_rwnd = rwnd_decode_data.split('$')[6]
-                            if (int(is_rwnd)):  # rwnd waiting packet
-                                # ACK last sent rwnd wait packet
-                                if (int(rwnd_Ack) and int(rwnd_AckNum) == rwnd_seq):
-                                    rwnd_val = int(
-                                        rwnd_decode_data.split('$')[7])
-                                    if (rwnd_val != 0):  # rwnd not zero, recover to send data
-                                        temp = int(rwnd_val / self.MSS)
-                                        self.sendWindowSize = 0 if temp < 1 else temp
-                                        window = self.resetWindow(
-                                            window, self.sendWindowSize)
-                                        break
-                                    else:  # Still waiting and increase wait pkt seq num
-                                        rwnd_seq += 1
-                            else:  # Not rwnd waiting pkt
-                                # if delayed previous data pkt ack, update window state
-                                if (ack_index >= lastAck and ack_index < lastSend):
-                                    win_index = int(
-                                        rwnd_AckNum) - origin_seq - lastAck
-                                    window[win_index] = 1
-                                    print(
-                                        'SEND: Fragment-%d sends successfully!' % ack_index)
-
-                    while lastSend-origin_seq < total_pkt and lastSend - lastAck < self.sendWindowSize:
-                        seqNum = lastSend
-                        print('SEND: Begin sending Fragment-%d(SeqNum:%d)...' %
-                              (lastSend, seqNum))
-                        header = packet_header(SeqNum=seqNum, Flag=Flag())
-                        pkt = packet(packet_header=header,
-                                     data=data_packets[lastSend-origin_seq])
-                        self.sock.sendto(pkt.getStr().encode(), self.csAddr)
-                        lastSend += 1
+                                rwnd_decode_data = rwnd_data.decode()
+                                rwnd_AckNum = rwnd_decode_data.split('$')[1]
+                                rwnd_Ack = rwnd_decode_data.split('$')[2]
+                                is_rwnd = rwnd_decode_data.split('$')[6]
+                                if (int(is_rwnd)):  # rwnd waiting packet
+                                    # ACK last sent rwnd wait packet
+                                    if (int(rwnd_Ack) and int(rwnd_AckNum) == rwnd_seq):
+                                        rwnd_val = int(
+                                            rwnd_decode_data.split('$')[7])
+                                        if (rwnd_val != 0):  # rwnd not zero, recover to send data
+                                            temp = int(rwnd_val / self.MSS)
+                                            self.sendWindowSize = 0 if temp < 1 else temp
+                                            window = self.resetWindow(
+                                                window, self.sendWindowSize)
+                                            break
+                                        else:  # Still waiting and increase wait pkt seq num
+                                            rwnd_seq += 1
+                                else:  # Not rwnd waiting pkt
+                                    # if delayed previous data pkt ack, update window state
+                                    if (ack_index >= lastAck and ack_index < lastSend):
+                                        win_index = int(rwnd_AckNum) - lastAck
+                                        window[win_index] = 1
+                                        print(
+                                            'SEND: Fragment-%d sends successfully!' % ack_index)
+                        while lastSend-origin_seq < total_pkt and lastSend - lastAck < self.sendWindowSize:
+                            seqNum = lastSend
+                            print('SEND: Begin sending Fragment-%d(SeqNum:%d)...' %
+                                (lastSend, seqNum))
+                            header = packet_header(SeqNum=seqNum, Flag=Flag())
+                            pkt = packet(packet_header=header,
+                                        data=data_packets[lastSend-origin_seq])
+                            self.sock.sendto(pkt.getStr().encode(), self.csAddr)
+                            lastSend += 1
                 print(lastSend, lastAck, origin_seq)
                 if lastAck-origin_seq-1 == total_pkt-1:
                     self.originSeq = lastAck
