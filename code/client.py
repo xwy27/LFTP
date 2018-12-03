@@ -29,26 +29,32 @@ def lSend():
   with open(sys.argv[3], "rb") as f:
     client = RDP.RDP(client=True)
     
+    print("making connection")
     if not client.makeConnection(addr=hostname, port=port):
       print("Error while connecting server.")
       return
     
+    print("sending command")
     if not client.rdp_send("lsend\n" + filename + "\n" + str(length)):
       print("Error while sending command.")
       return
 
+    print("waiting for response")
     response = client.rdp_recv(1024)
     if response != "OK":
       print("Error while waiting for response! " + response)
       return
 
+    print("start delivery")
     start_time = time.time()
     while sentLength != length:
-      line = f.read(20480)
+      line = f.read(409600)
       if not client.rdp_send(base64.b64encode(line).decode("ASCII")):
         print("Error while sending file %s." % filename)
         return
       sentLength += len(line)
+      print("Sent:  %d bytes" % sentLength)
+      print("Total: %d bytes" % length)
       print("Sending file %s: %d%% done." % (filename, sentLength / length * 100))
       print("Speed: %d KB/second" % (sentLength / (time.time() - start_time + 0.01) / 1000))
     print("Sending done.")
@@ -97,11 +103,10 @@ def lGet():
         print("Receiving %s: Done" % filename)
         break
       # Receive some data
-      metadata = client.rdp_recv(40960)
+      metadata = client.rdp_recv(57200)
       while len(metadata) % 4 != 0:
-        temp = client.rdp_recv(40960)
+        temp = client.rdp_recv(57200)
         if len(temp) == 0 :
-          metadata = ""
           break
         metadata += temp
         
@@ -110,6 +115,8 @@ def lGet():
         print("Receiving %s: Connection Error: Timeout when receiving data." % filename)
         break
       acLength += len(data)
+      print("Accepted length: %d bytes" % acLength)
+      print("Total length:    %d bytes" % length)
       print("Receiving %s: %d%% data received..." % (filename, acLength / length * 100))
       # Write to file
       f.write(data)
