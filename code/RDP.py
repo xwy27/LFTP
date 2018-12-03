@@ -265,6 +265,8 @@ class RDP():
                     ack_cnt += 1
                 else:  # Not wait rwnd pkt
                     back_ack = self.rcv_base - self.recvWindowSize
+                    print('RCV_Packet: ', decode_seqNum)
+                    print('back: ', back_ack)
                     if (back_ack >= 0 and decode_seqNum < self.rcv_base and back_ack >= decode_seqNum):
                         # [rcv_base-N, rcv_bace) pkt, resend ACK in case sender repeat resending
                         print('RECV: Before window pkt, resend ack...')
