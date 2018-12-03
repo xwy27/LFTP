@@ -52,7 +52,64 @@ def lSend():
     print("Sending done.")
 
 def lGet():
-  pass
+  filename = sys.argv[3]
+
+  # Handle hostname and port
+  serverPath = sys.argv[2].split(":")
+  hostname = serverPath[0]
+  if len(serverPath) == 2:
+    port = int(serverPath[1])
+  else:
+    port = 8080
+  
+  with open(sys.argv[3], "wb") as f:
+    client = RDP.RDP(client=True)
+
+    if not client.makeConnection(addr=hostname, port=port):
+      print("Error while connecting server.")
+      return
+    
+    if not client.rdp_send("lget\n" + filename):
+      print("Error while sending command.")
+      return
+    
+    response = client.rdp_recv(1024)
+    if response == "NO":
+      print("No Such File")
+      return
+    elif response == "":
+      print("Error while waiting for response!")
+      return
+    
+    response = response.split("\n")
+    print("Response from server: ", "".join(response))
+    if response[0] != "OK" or len(response) != 2:
+      print("Error while analysising response!")
+      return
+    
+    length = int(response[1])
+    acLength = 0
+    while True:
+      if acLength == length:
+        print("Receiving %s: Done" % filename)
+        break
+      # Receive some data
+      metadata = client.rdp_recv(30720)
+      while len(metadata) % 4 != 0:
+        temp = client.rdp_recv(30720)
+        if len(temp) == 0 :
+          metadata = ""
+          break
+        metadata += temp
+        
+      data = base64.b64decode(metadata.encode("ASCII"))
+      if len(data) == 0:
+        print("Receiving %s: Connection Error: Timeout when receiving data." % filename)
+        break
+      acLength += len(data)
+      print("Receiving %s: %d%% data received..." % (filename, acLength / length * 100))
+      # Write to file
+      f.write(data)
 
 if len(sys.argv) != 4:
   print("Invalid arguments.")
@@ -62,7 +119,7 @@ else:
   if sys.argv[1] == "lsend":
     lSend()
   elif sys.argv[1] == "lget":
-    pass
+    lGet()
   else:
     print("Invalid arguments.")
     print("Usage:")

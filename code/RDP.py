@@ -302,8 +302,7 @@ class RDP():
                         pkt = packet(header, '')
                         self.sock.sendto(pkt.getStr().encode(), self.csAddr)
                         ack_cnt += 1
-
-                    if decode_seqNum == self.rcv_base and random.randint(1, 100) < 90:
+                    elif decode_seqNum == self.rcv_base and random.randint(1, 100) < 90:
                         print(
                             'RECV: Window start pkt(SeqNum:%d), buffer continual data' % decode_seqNum)
                         rwnd = self.rcv_bufferSize-len(self.rcv_buffer)
@@ -312,6 +311,7 @@ class RDP():
                         pkt = packet(header, '')
                         self.sock.sendto(pkt.getStr().encode(), self.csAddr)
                         ack_cnt += 1
+                        print('ACK pkt: ', decode_seqNum)
 
                         # Set data for rcv_base
                         seq_index = int(
@@ -340,6 +340,8 @@ class RDP():
                         data = self.rcv_buffer[:size-1]
                         self.rcv_buffer = self.rcv_buffer[size:]
                         return data
+                    else:
+                        print("WOW, here we drop a packet!!!!", decode_seqNum)
         data = self.rcv_buffer[:size-1]
         self.rcv_buffer = self.rcv_buffer[size:]
         return data
@@ -483,10 +485,10 @@ class RDP():
         Cancel a client-connected RDP;
         Return the sock running address(addr, port)
         '''
-        # pair = self.sock.getsockname()
+        pair = self.sock.getsockname()
         self.cnt -= 1
         self.sock.close()
-        # return pair
+        return pair
 
     def releasePort(self, port):
         '''

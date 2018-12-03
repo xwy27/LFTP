@@ -76,7 +76,10 @@ def handleSocket(socket):
   print("Command received " + " ".join(commandPacket))
   if commandPacket[0] == "lget":
     # Sending file
-    pass
+    if len(commandPacket) == 2:
+      readFile(commandPacket[1], socket)
+    releaseSocket(socket)
+    
   elif commandPacket[0] == "lsend":
     # Getting file
     if len(commandPacket) == 3:
@@ -91,7 +94,8 @@ def releaseSocket(socket):
   global server
   global serverLock
   serverLock.acquire()
-  socket.release()
+  addr = socket.release()
+  server.releasePort(addr[1])
   serverLock.release()
 
 # Write a file whose name is filename of length
@@ -131,7 +135,6 @@ def writeFile(filename, length, socket):
   if not socket.rdp_send("OK"):
     print("Receiving %s: Connection Error: Fail when asking client to send file." % filename)
     wLockDict[filename].release()
-    releaseSocket(socket)
     return 
     
   # Accepted Length
@@ -168,7 +171,6 @@ def writeFile(filename, length, socket):
   # End of writing
   print("Receiving %s: File Lock Released." % filename)
   wLockDict[filename].release()  
-  releaseSocket(socket)
 
 
 # Readfile whose name is filename
@@ -180,7 +182,8 @@ def readFile(filename, socket):
   global rCountDict
 
   if not os.path.exists("data/" + filename):
-    socket.rdp_send("Error: File Not Existed!")
+    socket.rdp_send("NO")
+    print("Sending file %s: No such file." % filename)
     return
 
   dictLock.acquire()
@@ -202,6 +205,22 @@ def readFile(filename, socket):
     rLockDict[filename].release()
     wLockDict[filename].release()
   
+  length = os.stat("data/" + filename).st_size
+  sentLength = 0
+  
+  with open("data/" + filename, "rb") as f:
+    if not socket.rdp_send("OK\n" + str(length)):
+      print("Sending file %s: No such file." % filename)
+      return
+
+    while sentLength != length:
+      line = f.read(10240)
+      if not socket.rdp_send(base64.b64encode(line).decode("ASCII")):
+        print("Error while sending file %s." % filename)
+        return
+      sentLength += len(line)
+      print("Sending file %s: %d%% done." % (filename, sentLength / length * 100))
+    print("Sending done.")
 
   rLockDict[filename].acquire()
   rCountDict[filename] -= 1
