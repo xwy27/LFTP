@@ -3,18 +3,7 @@
 LFTP uses RDP Protocol, based on UDP, to finish **sending/getting large file between either server or client side**.
 RDP implements the **reliability, flow control and congestion control** as TCP.
 
-## Server side
-
-1. Implement the data sending(client getting file) by calling the function `RDP.rdp_send(data)`
-2. Implement the data downloading(client uploading file) by calling the function `RDP.rdp_get(size)`
-3. Support multiple client by multiple thread function
-   
-## Client side
-
-1. Implement the data sending(uploading file) by calling the function `RDP.rdp_send(data)`
-2. Implement the data receiving(downloading file) by calling the function `RDP.rdp_get(size)`
-
-## RDP Protocol
+## Transport Layer: RDP Protocol
 
 1. Implement the packet sending(data & handshake) by `rdp_send(data)`
     - Packet fragmentation(MSS)
@@ -24,7 +13,7 @@ RDP implements the **reliability, flow control and congestion control** as TCP.
 2. Implement the packet receiving(data & ACK & handshake) by `rdp_recv(size)`
     - Receive Buffer
 
-## Packet
+### Packet
 
 Three kinds of packets which are determined by Flag field:
 1. ACK packet
@@ -61,7 +50,7 @@ Designed packet structure:
   </tbody>
 </table>
 
-## Example of Using RDP
+### Example of Using RDP
 
 - Server
   
@@ -110,3 +99,16 @@ Designed packet structure:
   # Finally release socket
   client.release()
   ```
+
+## Application Layer: LFTP
+
+### Server side
+
+1. Implement the data sending(client getting file) by calling the function `RDP.rdp_send(data)`
+2. Implement the data downloading(client uploading file) by calling the function `RDP.rdp_get(size)`
+3. Support multiple client by multiple thread function
+   
+### Client side
+
+1. Implement the data sending(uploading file) by calling the function `RDP.rdp_send(data)`
+2. Implement the data receiving(downloading file) by calling the function `RDP.rdp_get(size)`
