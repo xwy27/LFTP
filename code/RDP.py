@@ -41,6 +41,9 @@ class RDP():
         self.rcv_bufferSize = 40960  # buffer size
 
         self.clientSock = []  # Activate sockets for server to serve client
+        self.seq = {}
+        self.cnt = 0
+        self.new_port = {}
 
     def rdp_send(self, data):
         '''
