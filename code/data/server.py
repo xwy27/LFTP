@@ -41,9 +41,6 @@ def console():
       print("Invalid input.")
 
 def listen(hostname, port):
-  global server
-  global serverLock
-  serverLock = threading.Lock()
   server = RDP.RDP(addr=hostname, port=int(port))
   listenThread = threading.Thread(target=server.listen, args=(10,), name="basic listening")
   listenThread.start()
@@ -58,14 +55,12 @@ def listen(hostname, port):
         time.sleep(0.5)
         continue
     
-    serverLock.acquire()
     clientSocket = server.accept()
     if clientSocket != None:
       print(clientSocket.getLocalAddr())
       print(clientSocket.csAddr)
       handleThread = threading.Thread(target=handleSocket, args=(clientSocket,))
       handleThread.start()
-    serverLock.release()
 
 # Function to handle the session with a client
 def handleSocket(socket):
@@ -85,12 +80,7 @@ def handleSocket(socket):
     return
 
 def releaseSocket(socket):
-  global server
-  global serverLock
-  serverLock.acquire()
-  addr = socket.release()
-  server.releasePort(addr[1])
-  serverLock.release()
+  pass
 
 # Write a file whose name is filename of length
 # Can not happen while others' reading and writing the same file
