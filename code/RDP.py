@@ -4,11 +4,13 @@ import random
 import enum
 import sys
 import traceback
+import time
 
 import utils
 from rdp_header import *
 
 exit = False
+
 
 class RDP():
     '''
@@ -29,9 +31,9 @@ class RDP():
         self.sendWindowSize = 128  # max size of the sending window
         self.recvWindowSize = 128  # max size of the receiving window
 
-        self.originSeq = 0 # for sender, the origin sequence number
+        self.originSeq = 0  # for sender, the origin sequence number
         self.lastAck = 0  # for sender to check the last ack packet in pipline
-        self.lastSend = 0 # for sender to check the last send packet in pipline
+        self.lastSend = 0  # for sender to check the last send packet in pipline
 
         self.rcv_base = 0  # for receiver to check the hoping receive pkt
 
@@ -67,7 +69,7 @@ class RDP():
         data_packets = [data[x*self.MSS:x*self.MSS+self.MSS]
                         for x in range(int(fragment_size))]
         lastAck = self.lastAck  # for sender to check the last ack packet in pipline
-        lastSend = self.lastSend # for sender to check the last send packet in pipline
+        lastSend = self.lastSend  # for sender to check the last send packet in pipline
         origin_seq = self.originSeq  # origin sequence number
         total_pkt = len(data_packets)  # Total num of data packets to send
         # Sender window, 0 for not ack, 1 for ack
@@ -79,7 +81,8 @@ class RDP():
             print('SEND: Begin sending Fragment-%d(SeqNum:%d)...' %
                   (lastSend, seqNum))
             header = packet_header(SeqNum=seqNum, Flag=Flag())
-            pkt = packet(packet_header=header, data=data_packets[lastSend-lastAck])
+            pkt = packet(packet_header=header,
+                         data=data_packets[lastSend-lastAck])
             self.sock.sendto(pkt.getStr().encode(), self.csAddr)
             lastSend += 1
 
@@ -102,11 +105,12 @@ class RDP():
                             fragment_index = lastAck + index
                             if pkt_index < total_pkt:
                                 print('SEND: Resending fragment-%d ...' %
-                                    fragment_index)
+                                      fragment_index)
                                 seqNum = fragment_index
-                                header = packet_header(SeqNum=seqNum, Flag=Flag())
+                                header = packet_header(
+                                    SeqNum=seqNum, Flag=Flag())
                                 pkt = packet(packet_header=header,
-                                            data=data_packets[pkt_index])
+                                             data=data_packets[pkt_index])
                                 self.sock.sendto(
                                     pkt.getStr().encode(), self.csAddr)
                     timeout_cnt += 1
@@ -181,14 +185,16 @@ class RDP():
                                     if (rwnd_val != 0):  # rwnd not zero, recover to send data
                                         temp = int(rwnd_val / self.MSS)
                                         self.sendWindowSize = 0 if temp < 1 else temp
-                                        window = self.resetWindow(window, self.sendWindowSize)
+                                        window = self.resetWindow(
+                                            window, self.sendWindowSize)
                                         break
                                     else:  # Still waiting and increase wait pkt seq num
                                         rwnd_seq += 1
                             else:  # Not rwnd waiting pkt
                                 # if delayed previous data pkt ack, update window state
                                 if (ack_index >= lastAck and ack_index < lastSend):
-                                    win_index = int(rwnd_AckNum) - origin_seq - lastAck
+                                    win_index = int(
+                                        rwnd_AckNum) - origin_seq - lastAck
                                     window[win_index] = 1
                                     print(
                                         'SEND: Fragment-%d sends successfully!' % ack_index)
@@ -429,7 +435,8 @@ class RDP():
         # self.clientPort = {}
         self.new_port = {}
         while True:
-            if exit: 
+            time.sleep(0.1)
+            if exit:
                 return
             try:
                 rcv_data, rcv_addr = self.sock.recvfrom(1024)
