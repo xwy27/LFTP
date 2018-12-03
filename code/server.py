@@ -94,9 +94,10 @@ def handleSocket(socket):
 def releaseSocket(socket):
   global server
   global serverLock
+
   serverLock.acquire()
-  addr = socket.release()
-  server.releasePort(addr[1])
+  # addr = socket.release()
+  # server.releasePort(addr[1])
   serverLock.release()
 
 # Write a file whose name is filename of length
@@ -142,6 +143,7 @@ def writeFile(filename, length, socket):
   acLength = 0
 
   with open("data/" + filename, "wb") as f:
+    start_time = time.time()
     while True:
       # User want to exit
       if exit:
@@ -168,6 +170,7 @@ def writeFile(filename, length, socket):
       print("Receiving %s: %d%% data received..." % (filename, acLength / length * 100))
       # Write to file
       f.write(data)
+      print("Speed: %d KB/s" % (acLength / (time.time() - start_time) / 1000))
   
   # End of writing
   print("Receiving %s: File Lock Released." % filename)
@@ -187,24 +190,36 @@ def readFile(filename, socket):
     print("Sending file %s: No such file." % filename)
     return
 
+  print("Sending %s: Acquiring Dictionary Lock..." % filename)
   dictLock.acquire()
   if filename not in wLockDict:
     # If no lock is initialized, create one
     wLockDict[filename] = threading.Lock()
     # Get the writer lock
+    print("Sending %s: Acquiring Writing Lock..." % filename)
     wLockDict[filename].acquire()
     rLockDict[filename] = threading.Lock()
+    print("Sending %s: Acquiring Reading Lock..." % filename)
     rLockDict[filename].acquire()
     rCountDict[filename] = 1
+    rLockDict[filename].release()
+    print("Sending %s: Reading Lock Released." % filename)
     wLockDict[filename].release()
+    print("Sending %s: Writing Lock Released." % filename)
     dictLock.release()
+    print("Sending %s: Dictionary Lock Released." % filename)
   else:
     dictLock.release()
+    print("Sending %s: Dictionary Lock Released." % filename)
+    print("Sending %s: Acquiring Writing Lock..." % filename)
     wLockDict[filename].acquire()
+    print("Sending %s: Acquiring Reading Lock..." % filename)
     rLockDict[filename].acquire()
     rCountDict[filename] += 1
     rLockDict[filename].release()
+    print("Sending %s: Reading Lock Released." % filename)
     wLockDict[filename].release()
+    print("Sending %s: Writing Lock Released." % filename)
   
   length = os.stat("data/" + filename).st_size
   sentLength = 0
@@ -214,18 +229,22 @@ def readFile(filename, socket):
       print("Sending file %s: No such file." % filename)
       return
 
+    start_time = time.time()
     while sentLength != length:
-      line = f.read(10240)
+      line = f.read(20480)
       if not socket.rdp_send(base64.b64encode(line).decode("ASCII")):
         print("Error while sending file %s." % filename)
         return
       sentLength += len(line)
       print("Sending file %s: %d%% done." % (filename, sentLength / length * 100))
+      print("Speed: %d KB/s" % (sentLength / (time.time() - start_time) / 1000))
     print("Sending done.")
 
+  print("Sending %s: Acquiring Reading Lock..." % filename)
   rLockDict[filename].acquire()
   rCountDict[filename] -= 1
   rLockDict[filename].release()
+  print("Sending %s: Reading Lock Released." % filename)
 
 
 # Check if Arguments are valid

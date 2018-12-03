@@ -88,6 +88,7 @@ class RDP():
 
         timeout_cnt = 0  # counter for timeout
         while True:
+            # time.sleep(0.05)
             try:
                 rcv_data, rcv_addr = self.sock.recvfrom(self.MSS + 256)
             except Exception as e:
@@ -312,7 +313,7 @@ class RDP():
                         pkt = packet(header, '')
                         self.sock.sendto(pkt.getStr().encode(), self.csAddr)
                         ack_cnt += 1
-                    elif decode_seqNum == self.rcv_base and random.randint(1, 100) < 90:
+                    elif decode_seqNum == self.rcv_base:
                         print(
                             'RECV: Window start pkt(SeqNum:%d), buffer continual data' % decode_seqNum)
                         rwnd = self.rcv_bufferSize-len(self.rcv_buffer)
@@ -435,7 +436,7 @@ class RDP():
         # self.clientPort = {}
         self.new_port = {}
         while True:
-            time.sleep(0.1)
+            time.sleep(0.2)
             if exit:
                 return
             try:
@@ -496,7 +497,6 @@ class RDP():
         Return the sock running address(addr, port)
         '''
         pair = self.sock.getsockname()
-        self.cnt -= 1
         self.sock.close()
         return pair
 
@@ -506,6 +506,7 @@ class RDP():
         '''
         for item in self.new_port.items():
             if item[1] == port:
+                self.cnt -= 1
                 del self.new_port[item[0]]
                 break
 
