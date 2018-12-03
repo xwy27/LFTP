@@ -103,7 +103,7 @@ class RDP():
             decode_ackNum = decode_data.split('$')[1]
             if (int(decode_ack)):
                 ack_index = int(decode_ackNum)
-                window_index = int(decode_ackNum) - origin_seq - lastAck
+                window_index = int(decode_ackNum) - lastAck
                 # print('SEND: ACK pkt(ACKNum:%d, windowIndex:%d, lastACK:%d, lastSend:%d)' % (
                 #     int(decode_ackNum), ack_index, lastAck, lastSend))
                 if (ack_index > lastAck and ack_index < lastSend):
@@ -174,7 +174,8 @@ class RDP():
                                      data=data_packets[lastSend-origin_seq])
                         self.sock.sendto(pkt.getStr().encode(), self.csAddr)
                         lastSend += 1
-                if lastAck == total_pkt:
+                print(lastSend, lastAck, origin_seq)
+                if lastAck-origin_seq-1 == total_pkt-1:
                     self.originSeq = lastAck
                     self.lastAck = lastAck
                     self.lastSend = lastSend
@@ -211,11 +212,12 @@ class RDP():
         ack_cnt = 0
         flag = Flag(ACK=1)
         origin_seq = random.randint(1, 10)
+        print(self.rcv_base)
         while True:
             try:
                 rcv_data, rcv_addr = self.sock.recvfrom(1024)
             except:
-                if cnt < 3:
+                if cnt < 5:
                     print('RECV: Waiting packets from (%s:%s)...' % self.csAddr)
                     cnt += 1
                     continue

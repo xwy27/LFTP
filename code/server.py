@@ -63,7 +63,6 @@ def listen(hostname, port):
 # Function to handle the session with a client
 def handleSocket(socket):
   commandPacket = socket.rdp_recv(1024)
-  socket.resetRecv()
   commandPacket = commandPacket.split("\n")
   print("Command received " + " ".join(commandPacket))
   if commandPacket[0] == "lget":
@@ -87,26 +86,35 @@ def writeFile(filename, length, socket):
   global rLockDict
   global rCountDict
 
+  print("Receiving %s: Acquiring Dictionary Lock..." % filename)
   dictLock.acquire()
+  print("Receiving %s: Dictionary Lock Acquired" % filename)
   # Try to get the writer lock
   if filename not in wLockDict:
+    print("Receiving %s: Initializing File Lock..." % filename)
     # If no lock is initialized, create one
     wLockDict[filename] = threading.Lock()
     # Get the writer lock
+    print("Receiving %s: Acquiring file writing lock..." % filename)
     wLockDict[filename].acquire()
+    print("Receiving %s: File writing lock Acquired." % filename)    
     rLockDict[filename] = threading.Lock()
     rCountDict[filename] = 0
     dictLock.release()
+    print("Receiving %s: Dictionary Lock Released." % filename)
   else:
     dictLock.release()
+    print("Receiving %s: Dictionary Lock Released." % filename)
     # Get the writer lock
+    print("Receiving %s: Acquiring file writing lock..." % filename)
     wLockDict[filename].acquire()
+    print("Receiving %s: File writing lock Acquired." % filename)    
     while rLockDict[filename] != 0:
       time.sleep(0.5)
 
   # Tell client to send file
   if not socket.rdp_send("OK"):
-    print("Connection Error: Fail when asking client to send file.")
+    print("Receiving %s: Connection Error: Fail when asking client to send file." % filename)
     wLockDict[filename].release()
     releaseSocket(socket)
     return 
@@ -118,7 +126,7 @@ def writeFile(filename, length, socket):
     while True:
       # User want to exit
       if exit:
-        print("Server is exiting...")
+        print("Receiving %s: Server is exiting..." % filename)
         break
       # Finish
       if acLength == length:
@@ -128,15 +136,15 @@ def writeFile(filename, length, socket):
       metadata = socket.rdp_recv(2048)
       data = base64.b64decode(metadata.encode("ASCII"))
       if len(data) == 0:
-        print("Connection Error: Timeout when receiving data.")
+        print("Receiving %s: Connection Error: Timeout when receiving data." % filename)
         break
       acLength += len(data)
       print("Receiving %s: %d%% data received..." % (filename, acLength / length * 100))
       # Write to file
       f.write(data)
   
-  # socket.resetRecv()
   # End of writing
+  print("Receiving %s: File Lock Released." % filename)
   wLockDict[filename].release()  
 
 

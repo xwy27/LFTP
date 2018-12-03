@@ -102,3 +102,7 @@ venv.bak/
 
 # mypy
 .mypy_cache/
+
+# Personal
+./code/data/*
+./code/data/testfiles/*

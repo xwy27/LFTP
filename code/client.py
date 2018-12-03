@@ -48,8 +48,6 @@ def lSend():
         print("Error while sending file %s." % filename)
         return
       sentLength += len(line)
-      print(sentLength)
-      time.sleep(0.5)
       print("Sending file %s: %d%% done." % (filename, sentLength / length * 100))
     print("Sending done.")
 
