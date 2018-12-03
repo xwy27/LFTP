@@ -148,9 +148,9 @@ def writeFile(filename, length, socket):
         print("Receiving %s: Done" % filename)
         break
       # Receive some data
-      metadata = socket.rdp_recv(15360)
+      metadata = socket.rdp_recv(30720)
       while len(metadata) % 4 != 0:
-        temp = socket.rdp_recv(15360)
+        temp = socket.rdp_recv(30720)
         if len(temp) == 0 :
           metadata = ""
           break

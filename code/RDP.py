@@ -25,9 +25,9 @@ class RDP():
         self.csAddr = ('', 0)  # Bind client or server address
         self.sock.settimeout(1)  # set timeout seconds
 
-        self.MSS = 8192  # Max Sending Size
-        self.sendWindowSize = 4  # max size of the sending window
-        self.recvWindowSize = 4  # max size of the receiving window
+        self.MSS = 15700  # Max Sending Size
+        self.sendWindowSize = 128  # max size of the sending window
+        self.recvWindowSize = 128  # max size of the receiving window
 
         self.originSeq = 0 # for sender, the origin sequence number
         self.lastAck = 0  # for sender to check the last ack packet in pipline
@@ -40,7 +40,7 @@ class RDP():
         # So the lastByteRead is always zero and the len(rcv_buffer) is the lastByteRecv
         # The rwnd = BufferSize - (lastByteRecv - lastByteRead) = BufferSize - len(rcv_buffer)
         self.rcv_buffer = ''  # buffer for rcv_data
-        self.rcv_bufferSize = 40960  # buffer size
+        self.rcv_bufferSize = 4096000  # buffer size
 
         self.clientSock = []  # Activate sockets for server to serve client
         self.seq = {}
@@ -303,7 +303,7 @@ class RDP():
                         self.sock.sendto(pkt.getStr().encode(), self.csAddr)
                         ack_cnt += 1
 
-                    if decode_seqNum == self.rcv_base:
+                    if decode_seqNum == self.rcv_base and random.randint(1, 100) < 90:
                         print(
                             'RECV: Window start pkt(SeqNum:%d), buffer continual data' % decode_seqNum)
                         rwnd = self.rcv_bufferSize-len(self.rcv_buffer)
