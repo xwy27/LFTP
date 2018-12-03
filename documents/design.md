@@ -356,8 +356,109 @@ There's an issue you need to pay sight on: base64 code must be a multiplex of 4 
 
 #### Make Connection
 
+Client side program needs to corporate with the server side one to make the whole system work as expected. So, before we do any operation, we need to make connection with the server:
+
+```python
+client = RDP.RDP(client=True)
+    
+if not client.makeConnection(addr=hostname, port=port):
+  print("Error while connecting server.")
+  return
+```
+
+As in each session of the program, only one operation will be do individually, multi-thread architecture is no longer necessary for client side.
+
 #### Sending Data
 
-Client side program needs to corporate with the server side one to make the whole system work as expected. Thus before we begin to send data, we need to send our command
+Before sending the real content of file, we need to check the existence of file and inform server of the information of the file. And our sending can only begin after the server gets ready (and sends us a OK message).
+
+```python
+# Check if file exists
+if not os.path.exists(sys.argv[3]):
+  print("Error: No such file.")
+  return
+
+filename = os.path.basename(sys.argv[3])
+
+# Get the length of file and the file itself
+length = os.stat(sys.argv[3]).st_size
+
+if not client.rdp_send("lsend\n" + filename + "\n" + str(length)):
+  print("Error while sending command.")
+  return
+
+response = client.rdp_recv(1024)
+if response != "OK":
+  print("Error while waiting for response! " + response)
+  return
+```
+
+After we get server's permission to transport, we will do like server does before, read data internally and send them to the server:
+
+```python
+start_time = time.time()
+while sentLength != length:
+  line = f.read(20480)
+  if not client.rdp_send(base64.b64encode(line).decode("ASCII")):
+    print("Error while sending file %s." % filename)
+    return
+  sentLength += len(line)
+  print("Sending file %s: %d%% done." % (filename, sentLength / length * 100))
+  print("Speed: %d KB/second" % (sentLength / (time.time() - start_time + 0.01) / 1000))
+print("Sending done.")
+```
 
 #### Getting Data
+
+Like what sending data does, when we want to get data from server, we need to inform it with the information of the file we want to get and wait for its response:
+
+```python
+if not client.rdp_send("lget\n" + filename):
+  print("Error while sending command.")
+  return
+
+response = client.rdp_recv(1024)
+if response == "NO":
+  print("No Such File")
+  return
+elif response == "":
+  print("Error while waiting for response!")
+  return
+```
+
+As server has sent us some information about the file to be sent, we need to use them to config the process followed:
+
+```python
+response = response.split("\n")
+print("Response from server: ", "".join(response))
+if response[0] != "OK" or len(response) != 2:
+  print("Error while analysising response!")
+  return
+```
+
+At last, just get data like what server does above:
+
+```python
+while True:
+  if acLength == length:
+    print("Receiving %s: Done" % filename)
+    break
+  # Receive some data
+  metadata = client.rdp_recv(40960)
+  while len(metadata) % 4 != 0:
+    temp = client.rdp_recv(40960)
+    if len(temp) == 0 :
+      metadata = ""
+      break
+    metadata += temp
+    
+  data = base64.b64decode(metadata.encode("ASCII"))
+  if len(data) == 0:
+    print("Receiving %s: Connection Error: Timeout when receiving data." % filename)
+    break
+  acLength += len(data)
+  print("Receiving %s: %d%% data received..." % (filename, acLength / length * 100))
+  # Write to file
+  f.write(data)
+  print("Speed: %d KB/s" % (acLength / (time.time() - start_time + 0.01) / 1000))
+```
