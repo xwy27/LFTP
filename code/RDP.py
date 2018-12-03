@@ -23,7 +23,7 @@ class RDP():
         self.csAddr = ('', 0)  # Bind client or server address
         self.sock.settimeout(1)  # set timeout seconds
 
-        self.MSS = 500  # Max Sending Size
+        self.MSS = 8192  # Max Sending Size
         self.sendWindowSize = 4  # max size of the sending window
         self.recvWindowSize = 4  # max size of the receiving window
 
@@ -38,7 +38,7 @@ class RDP():
         # So the lastByteRead is always zero and the len(rcv_buffer) is the lastByteRecv
         # The rwnd = BufferSize - (lastByteRecv - lastByteRead) = BufferSize - len(rcv_buffer)
         self.rcv_buffer = ''  # buffer for rcv_data
-        self.rcv_bufferSize = 4096  # buffer size
+        self.rcv_bufferSize = 40960  # buffer size
 
         self.clientSock = []  # Activate sockets for server to serve client
 
@@ -52,8 +52,14 @@ class RDP():
         print('-'*15, ' BEGIN SEND ', '-'*15)
 
         # Split the data
+        fragment_size = 0
+        if len(data) % self.MSS != 0:
+            fragment_size = len(data)/self.MSS + 1
+        else:
+            fragment_size = len(data)/self.MSS
+
         data_packets = [data[x*self.MSS:x*self.MSS+self.MSS]
-                        for x in range(int(len(data)/self.MSS)+1)]
+                        for x in range(int(fragment_size))]
         lastAck = self.lastAck  # for sender to check the last ack packet in pipline
         lastSend = self.lastSend # for sender to check the last send packet in pipline
         origin_seq = self.originSeq  # origin sequence number
@@ -72,7 +78,7 @@ class RDP():
         timeout_cnt = 0  # counter for timeout
         while True:
             try:
-                rcv_data, rcv_addr = self.sock.recvfrom(1024)
+                rcv_data, rcv_addr = self.sock.recvfrom(self.MSS + 256)
             except:
                 # No ACK packet, resend fragment
                 if timeout_cnt < 5:
@@ -215,7 +221,7 @@ class RDP():
         print(self.rcv_base)
         while True:
             try:
-                rcv_data, rcv_addr = self.sock.recvfrom(1024)
+                rcv_data, rcv_addr = self.sock.recvfrom(self.MSS + 256)
             except:
                 if cnt < 5:
                     print('RECV: Waiting packets from (%s:%s)...' % self.csAddr)

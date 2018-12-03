@@ -43,7 +43,7 @@ def lSend():
       return
 
     while sentLength != length:
-      line = f.read(1024)
+      line = f.read(10240)
       if not client.rdp_send(base64.b64encode(line).decode("ASCII")):
         print("Error while sending file %s." % filename)
         return
