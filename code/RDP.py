@@ -2,6 +2,8 @@
 import socket
 import random
 import enum
+import sys
+import traceback
 
 import utils
 from rdp_header import *
@@ -83,7 +85,10 @@ class RDP():
         while True:
             try:
                 rcv_data, rcv_addr = self.sock.recvfrom(self.MSS + 256)
-            except:
+            except Exception as e:
+                print(traceback.format_exc())
+                print('-'*15)
+                print(e)
                 # No ACK packet, resend fragment
                 if timeout_cnt < 5:
                     print('SEND: Timeout for receiving ACK from(%s:%s)...' %
