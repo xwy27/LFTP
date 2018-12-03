@@ -71,7 +71,10 @@ class RDP():
         origin_seq = self.originSeq  # origin sequence number
         total_pkt = len(data_packets)  # Total num of data packets to send
         # Sender window, 0 for not ack, 1 for ack
-        window = [0] * self.sendWindowSize
+        window = []
+        for x in range(self.sendWindowSize):
+            window.append(0)
+        print('originWindow: ', window)
         while (lastSend - origin_seq) < total_pkt and lastSend - lastAck < self.sendWindowSize:
             seqNum = lastSend
             print('SEND: Begin sending Fragment-%d(SeqNum:%d)...' %
@@ -93,16 +96,18 @@ class RDP():
                 if timeout_cnt < 5:
                     print('SEND: Timeout for receiving ACK from(%s:%s)...' %
                           self.csAddr)
+                    print('window: ', window)
                     for index, win in enumerate(window):
                         if not int(win):
                             pkt_index = index + lastAck
-                            if pkt_index < total_pkt:
+                            print(pkt_index, origin_seq, total_pkt)
+                            if pkt_index - lastAck < total_pkt:
                                 print('SEND: Resending fragment-%d ...' %
                                     pkt_index)
-                                seqNum = origin_seq + pkt_index
+                                seqNum = pkt_index
                                 header = packet_header(SeqNum=seqNum, Flag=Flag())
                                 pkt = packet(packet_header=header,
-                                            data=data_packets[pkt_index])
+                                            data=data_packets[pkt_index-lastAck])
                                 self.sock.sendto(
                                     pkt.getStr().encode(), self.csAddr)
                     timeout_cnt += 1
@@ -124,7 +129,8 @@ class RDP():
                 if (ack_index > lastAck and ack_index < lastSend):
                     decode_rwnd = decode_data.split('$')[7]
                     # Update sending window size
-                    self.sendWindowSize = int(decode_rwnd)
+                    temp = int(int(decode_rwnd) / self.MSS)
+                    self.sendWindowSize = 0 if temp < 1 else temp
                     window[window_index] = 1
                     print(
                         'SEND: Fragment-%d sends successfully!(Waiting to move window...)' % ack_index)
@@ -133,7 +139,8 @@ class RDP():
                         'SEND: Fragment-%d sends successfully!(Move Window)' % ack_index)
                     decode_rwnd = decode_data.split('$')[7]
                     # Update sending window size
-                    self.sendWindowSize = int(decode_rwnd)
+                    temp = int(int(decode_rwnd) / self.MSS)
+                    self.sendWindowSize = 0 if temp < 1 else temp
                     window[window_index] = 1
                     for w in window:
                         if int(w):
@@ -168,7 +175,8 @@ class RDP():
                                     rwnd_val = int(
                                         rwnd_decode_data.split('$')[7])
                                     if (rwnd_val != 0):  # rwnd not zero, recover to send data
-                                        self.sendWindowSize = rwnd_val
+                                        temp = int(rwnd_val / self.MSS)
+                                        self.sendWindowSize = 0 if temp < 1 else temp
                                         break
                                     else:  # Still waiting and increase wait pkt seq num
                                         rwnd_seq += 1
