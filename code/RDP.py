@@ -30,7 +30,6 @@ class RDP():
         self.MSS = 60000  # Max Sending Size
         self.sendWindowSize = 128  # max size of the sending window
         self.recvWindowSize = 128  # max size of the receiving window
-
         self.originSeq = 0  # for sender, the origin sequence number
         self.lastAck = 0  # for sender to check the last ack packet in pipline
         self.lastSend = 0  # for sender to check the last send packet in pipline
@@ -44,10 +43,15 @@ class RDP():
         self.rcv_buffer = ''  # buffer for rcv_data
         self.rcv_bufferSize = 4096000  # buffer size
 
+        self.congessState = 0 # Congession control state, 0: slowStart, 1:congessionAvoid, 2:fastRecovery
+        self.cwnd = self.MSS # Congession Window
+        self.dupACK = 0 # count for duplicate ACK
+        self.ssthresh = 64000 # 
+
         self.clientSock = []  # Activate sockets for server to serve client
-        self.seq = {}
-        self.cnt = 0
-        self.new_port = {}
+        self.seq = {} # Sequence Numbers to SYN clients
+        self.cnt = 0 # Count for connected clients 
+        self.new_port = {} # Ports distributed for SYN clients
 
     def rdp_send(self, data):
         '''
