@@ -5,26 +5,24 @@ RDP implements the **reliability, flow control and congestion control** as TCP.
 
 ## Server side
 
-1. Implement the data sending(client getting file) by calling the function `RDP.send(data, addr)`
-2. Implement the data downloading(client uploading file) by calling the function `RDP.get(file, addr)`
+1. Implement the data sending(client getting file) by calling the function `RDP.rdp_send(data)`
+2. Implement the data downloading(client uploading file) by calling the function `RDP.rdp_get(size)`
 3. Support multiple client by multiple thread function
    
 ## Client side
 
-1. Implement the data sending(uploading file) by calling the function `RDP.send(data, addr)`
-2. Implement the data receiving(downloading file) by calling the function `RDP.get(file, addr)`
+1. Implement the data sending(uploading file) by calling the function `RDP.rdp_send(data)`
+2. Implement the data receiving(downloading file) by calling the function `RDP.rdp_get(size)`
 
 ## RDP Protocol
 
-1. Implement the packet sending(data & handshake) by `rdp_send(packet)`
+1. Implement the packet sending(data & handshake) by `rdp_send(data)`
     - Packet fragmentation(MSS)
     - Send packet in pipe line
     - Flow control
     - Congestion control
-2. Implement the packet receiving(data & ACK & handshake)
+2. Implement the packet receiving(data & ACK & handshake) by `rdp_recv(size)`
     - Receive Buffer
-3. `send(data, addr)` for application layer
-4. `get(file, addr)` for application layer
 
 ## Packet
 
@@ -52,7 +50,7 @@ Designed packet structure:
       <td align="center" colspan=2>Acknowledgement Number</td>
     </tr>
     <tr>
-      <td align="center">Flag Field<br>(ACK, RST, SYN, FIN)</td>
+      <td align="center">Flag Field<br>(ACK, SYN, RST, FIN, WRW)</td>
     </tr>
     <tr>
       <td align="center">Receive Window</td>
