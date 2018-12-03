@@ -50,6 +50,7 @@ class RDP():
         '''
         print('\n')
         print('-'*15, ' BEGIN SEND ', '-'*15)
+        print(self.csAddr)
 
         # Split the data
         fragment_size = 0
@@ -441,7 +442,7 @@ class RDP():
                     print('LISTEN: Handshake finish with client(%s): %s' %
                           (rcv_addr, data))
                     self.clientSock.append(
-                        [rcv_addr, RDP(port=(self.new_port[rcv_addr]))])
+                        [rcv_addr, RDP(addr=self.getLocalAddr()[0], port=(self.new_port[rcv_addr]))])
             else:
                 # break
                 print(
