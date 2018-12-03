@@ -251,7 +251,7 @@ class RDP():
         ack_cnt = 0
         flag = Flag(ACK=1)
         origin_seq = random.randint(1, 10)
-        # print(self.rcv_base)
+        print(self.rcv_base)
         while True:
             try:
                 rcv_data, rcv_addr = self.sock.recvfrom(self.MSS + 256)
