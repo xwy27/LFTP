@@ -104,7 +104,7 @@ class RDP():
                 if timeout_cnt < 5:
                     print('SEND: Timeout for receiving ACK from(%s:%s)...' %
                           self.csAddr)
-
+                    print('SEND-TIMEOUT-BEFORE-STATE: ', self.congessState)
                     self.ssthresh = int(self.cwnd / 2)
                     self.cwnd = self.MSS
                     self.dupACK = 0
@@ -115,6 +115,7 @@ class RDP():
                         self.congessState = utils.slowState
                     elif self.congessState == utils.fastState: # timeout for fast recovery state
                         self.congessState = utils.slowState
+                    print('SEND-TIMEOUT-AFTER-STATE: ', self.congessState)
 
                     for index, win in enumerate(window):
                         if not int(win):
@@ -144,8 +145,9 @@ class RDP():
             if (int(decode_ack)):
                 ack_index = int(decode_ackNum)
                 window_index = int(decode_ackNum) - lastAck
-                # print('SEND: ACK pkt(ACKNum:%d, windowIndex:%d, lastACK:%d, lastSend:%d)' % (
-                #     int(decode_ackNum), window_index, lastAck, lastSend))
+                print('SEND: ACK pkt(ACKNum:%d, windowIndex:%d, lastACK:%d, lastSend:%d)' % (
+                    int(decode_ackNum), window_index, lastAck, lastSend))
+                print('SEND-ACK-BEFORE-STATE: ', self.congessState)
                 if window[window_index]: # duplicate ACK
                     if self.congessState == utils.slowState: # dup ACK for slow start state
                         self.dupACK += 1
@@ -161,6 +163,7 @@ class RDP():
                             self.congessState = utils.fastState
                     elif self.congessState == utils.fastState: # dup ACK for fast recovery state
                         self.cwnd += self.MSS
+                    print('SEND-DUP-ACK-AFTER-STATE: ', self.congessState)
                 else: # new ACK
                     if self.congessState == utils.slowState: # new ACK for slow state
                         self.cwnd += self.MSS
@@ -174,6 +177,7 @@ class RDP():
                         self.cwnd = self.ssthresh
                         self.dupACK = 0
                         self.congessState = utils.avoidState
+                    print('SEND-NEW-ACK-AFTER-STATE: ', self.congessState)
                     
                     # ACK between (lastACK, lastSend) which is inside window
                     if (ack_index > lastAck and ack_index < lastSend):
@@ -325,7 +329,7 @@ class RDP():
                     back_ack = self.rcv_base - self.recvWindowSize
                     print('RCV_Packet: ', decode_seqNum)
                     print('back: ', back_ack)
-                    if (back_ack >= 0 and decode_seqNum < self.rcv_base and back_ack >= decode_seqNum):
+                    if (back_ack >= 0 and decode_seqNum < self.rcv_base and back_ack <= decode_seqNum):
                         # [rcv_base-N, rcv_bace) pkt, resend ACK in case sender repeat resending
                         print('RECV: Before window pkt, resend ack...')
                         rwnd = self.rcv_bufferSize-len(self.rcv_buffer)
