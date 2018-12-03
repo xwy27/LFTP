@@ -468,10 +468,10 @@ class RDP():
         Cancel a client-connected RDP;
         Return the sock running address(addr, port)
         '''
-        pair = self.sock.getsockname()
+        # pair = self.sock.getsockname()
         self.cnt -= 1
         self.sock.close()
-        return pair
+        # return pair
 
     def releasePort(self, port):
         '''

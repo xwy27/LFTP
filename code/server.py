@@ -7,6 +7,8 @@ import base64
 
 # Flag to check if the program is going to exit
 exit = False
+server = None
+serverLock = None
 
 # dictionary: filename => lock
 dictLock = threading.Lock()
@@ -82,14 +84,14 @@ def handleSocket(socket):
     releaseSocket(socket)
   else:
     print("Error when parsing command.")
+    releaseSocket(socket)
     return
 
 def releaseSocket(socket):
   global server
   global serverLock
   serverLock.acquire()
-  addr = socket.release()
-  server.releasePort(addr[1])
+  socket.release()
   serverLock.release()
 
 # Write a file whose name is filename of length
@@ -122,7 +124,7 @@ def writeFile(filename, length, socket):
     print("Receiving %s: Acquiring file writing lock..." % filename)
     wLockDict[filename].acquire()
     print("Receiving %s: File writing lock Acquired." % filename)    
-    while rLockDict[filename] != 0:
+    while rCountDict[filename] != 0:
       time.sleep(0.5)
 
   # Tell client to send file
@@ -166,6 +168,7 @@ def writeFile(filename, length, socket):
   # End of writing
   print("Receiving %s: File Lock Released." % filename)
   wLockDict[filename].release()  
+  releaseSocket(socket)
 
 
 # Readfile whose name is filename
