@@ -27,7 +27,7 @@ class RDP():
         self.csAddr = ('', 0)  # Bind client or server address
         self.sock.settimeout(1)  # set timeout seconds
 
-        self.MSS = 15700  # Max Sending Size
+        self.MSS = 60000  # Max Sending Size
         self.sendWindowSize = 128  # max size of the sending window
         self.recvWindowSize = 128  # max size of the receiving window
 
