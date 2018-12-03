@@ -50,6 +50,7 @@ def listen(hostname, port):
   listenThread = threading.Thread(target=server.listen, args=(10,), name="basic listening")
   listenThread.start()
   while True:
+    time.sleep(0.1)
     # If the user is trying to exit
     if exit:
       # Stop the listen thread
