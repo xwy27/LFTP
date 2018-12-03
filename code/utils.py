@@ -4,7 +4,9 @@ import random
 
 delimeter = '$'
 data_index = 8
-
+slowState = 0
+avoidState = 1
+fastState = 2
 
 def getPort():
     '''
