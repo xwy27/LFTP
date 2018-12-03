@@ -182,6 +182,7 @@ class RDP():
                     # ACK between (lastACK, lastSend) which is inside window
                     if (ack_index > lastAck and ack_index < lastSend):
                         decode_rwnd = decode_data.split('$')[7]
+                        print('SEND-RWND: ', int(decode_rwnd))
                         # Update sending window size with rwnd and cwnd
                         temp = min(int(decode_rwnd), self.cwnd)
                         temp = int(temp / self.MSS)
@@ -195,6 +196,7 @@ class RDP():
                         print(
                             'SEND: Fragment-%d sends successfully!(Move Window)' % ack_index)
                         decode_rwnd = decode_data.split('$')[7]
+                        print('SEND-RWND: ', int(decode_rwnd))
                         # Update sending window size with rwnd and cwnd
                         temp = min(self.cwnd, int(decode_rwnd))
                         temp = int(temp / self.MSS)
