@@ -485,6 +485,7 @@ class RDP():
             print('CONNECT: Handshake with server(%s:%s) successfully!' %
                   self.csAddr)
             print('-'*15, ' END HANDSHAKE ', '-'*15)
+            time.sleep(0.5)
             return True
 
     def listen(self, num):
