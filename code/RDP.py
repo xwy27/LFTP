@@ -9,6 +9,7 @@ import time
 import utils
 from rdp_header import *
 
+# Exit flag: if user type exit
 exit = False
 
 
@@ -98,10 +99,11 @@ class RDP():
             try:
                 rcv_data, rcv_addr = self.sock.recvfrom(self.MSS + 256)
             except Exception as e:
+                print('-'*15 + ' ERROR ' + '-'*15)
                 print(traceback.format_exc())
-                print('-'*15)
+                print('-'*37)
                 print(e)
-                print('-'*15)
+                print('-'*15 + ' ERROR ' + '-'*15)
                 # No ACK packet, resend fragment
                 if timeout_cnt < 5:
                     print('SEND: Timeout for receiving ACK from(%s:%s)...' %
@@ -264,7 +266,7 @@ class RDP():
                                             data=data_packets[lastSend-origin_seq])
                                 self.sock.sendto(pkt.getStr().encode(), self.csAddr)
                                 lastSend += 1
-                print(lastSend, lastAck, origin_seq)
+                # print(lastSend, lastAck, origin_seq)
                 if lastAck-origin_seq-1 == total_pkt-1:
                     self.originSeq = lastAck
                     self.lastAck = lastAck
@@ -302,7 +304,7 @@ class RDP():
         ack_cnt = 0
         flag = Flag(ACK=1)
         origin_seq = random.randint(1, 10)
-        print(self.rcv_base)
+        # print(self.rcv_base)
         while True:
             try:
                 rcv_data, rcv_addr = self.sock.recvfrom(self.MSS + 256)
