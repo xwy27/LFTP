@@ -331,13 +331,14 @@ class RDP():
                     self.sock.sendto(pkt.getStr().encode(), self.csAddr)
                     ack_cnt += 1
                 else:  # Not wait rwnd pkt
-                    back_ack = self.rcv_base - self.recvWindowSize
+                    temp = self.rcv_base - self.recvWindowSize
+                    back_ack = 0 if temp < 0 else temp
                     print('RCV_Packet: ', decode_seqNum)
                     print('back: ', back_ack)
-                    if random.randint(0, 50) < 25:
-                        print("HAHAHAHA!!!! DROP IT!!!! ", decode_seqNum)
-                    elif (back_ack >= 0 and decode_seqNum < self.rcv_base and back_ack <= decode_seqNum):
-                    # if (back_ack >= 0 and decode_seqNum < self.rcv_base and back_ack <= decode_seqNum):
+                    # if random.randint(0, 50) < 5:
+                    #     print("HAHAHAHA!!!! DROP IT!!!! ", decode_seqNum)
+                    # elif (decode_seqNum < self.rcv_base and back_ack <= decode_seqNum):
+                    if (decode_seqNum < self.rcv_base and back_ack <= decode_seqNum):
                         # [rcv_base-N, rcv_bace) pkt, resend ACK in case sender repeat resending
                         print('RECV: Before window pkt, resend ack...')
                         rwnd = self.rcv_bufferSize-len(self.rcv_buffer)
@@ -410,8 +411,11 @@ class RDP():
                         return data
                     else:
                         print("WOW, here we drop a packet!!!!", decode_seqNum)
-        data = self.rcv_buffer[:size]
-        self.rcv_buffer = self.rcv_buffer[size:]
+        
+        # data = self.rcv_buffer[:size]
+        # self.rcv_buffer = self.rcv_buffer[size:]
+        data = self.rcv_buffer
+        self.rcv_buffer = ''
         return data
 
     def resetRecv(self):

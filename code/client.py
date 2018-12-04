@@ -47,12 +47,17 @@ def lSend():
 
     print("start delivery")
     start_time = time.time()
+    DIV_SIZE = 60000 / 4 * 3
+    SECTION_NUM = 5
     while sentLength != length:
-      line = f.read(262144)
-      if not client.rdp_send(base64.b64encode(line).decode("ASCII")):
+      line = ''
+      metaLine = f.read(DIV_SIZE * SECTION_NUM)
+      for x in range(0, SECTION_NUM):
+        line += base64.b64encode(metaLine[x * DIV_SIZE:x * DIV_SIZE + DIV_SIZE]).decode("ASCII")
+      if not client.rdp_send(line):
         print("Error while sending file %s." % filename)
         return
-      sentLength += len(line)
+      sentLength += len(metaLine)
       print("Sent:  %d bytes" % sentLength)
       print("Total: %d bytes" % length)
       print("Sending file %s: %d%% done." % (filename, sentLength / length * 100))
@@ -104,7 +109,6 @@ def lGet():
         break
       # Receive some data
       metadata = client.rdp_recv(60000)
-      time.sleep(0.2)
       print("Received Length: ", len(metadata))
       data = base64.b64decode(metadata.encode("ASCII"))
       if len(data) == 0:
@@ -112,7 +116,7 @@ def lGet():
         break
       acLength += len(data)
       print("Recv:  %d bytes" % acLength)
-      print("Total: %d byets" % length)
+      print("Total: %d bytes" % length)
       print("Receiving %s: %d%% data received..." % (filename, acLength / length * 100))
       print("Speed: %d KB/s" % (acLength / (time.time() - start_time + 0.01) / 1000))
       # Write to file

@@ -225,13 +225,18 @@ def readFile(filename, socket):
       return
 
     start_time = time.time()
+    DIV_SIZE = int(60000 / 4 * 3)
+    SECTION_NUM = 5
     while sentLength != length:
-      line = f.read(262144)
-      print("Sending Length: ", len(base64.b64encode(line).decode("ASCII")))
-      if not socket.rdp_send(base64.b64encode(line).decode("ASCII")):
+      line = ''
+      metaLine = f.read(DIV_SIZE * SECTION_NUM)
+      for x in range(0, SECTION_NUM):
+        line += base64.b64encode(metaLine[x * DIV_SIZE:x * DIV_SIZE + DIV_SIZE]).decode("ASCII")
+      print("Sending Length: ", len(line))
+      if not socket.rdp_send(line):
         print("Error while sending file %s." % filename)
         return
-      sentLength += len(line)
+      sentLength += len(metaLine)
       print("Sent:  %d bytes" % sentLength)
       print("Total: %d bytes" % length)
       print("Sending file %s: %d%% done." % (filename, sentLength / length * 100))
