@@ -134,16 +134,160 @@ RDP Protocol provides the **reliability, flow control, congestion control** like
 - **Inside Function**
   - **`makeConnection(targetAddress)`** and **`listen(num)`**
     `makeConnection` helps make connection with client and server. We only invoke it in client side. First, it send SYN pkt and waits server to send ACK pkt. After receiving the ACK from server, client send ACK to client and the *handshake* or connection is established.
-    Though, it helps us make connection, the socket keeps the targetAddress is a problem. Because the targetAddress is linked to the server listening application. We need to bind the client with the correct port of serving application(*Client just need to know the server running at the 8080 port and makeConnection with it, but server using different port to handle multiple clients. So it is important for client socket to know which port in server is serving it and **communicate** with serving application through that port*). We deal with the problem with the idea of server sending the port to client in ACK pkt and waiting for the ACK to truly create a socket to server the client. Why creation happens when server receive from client? Because the *SYN flood* attack. If we create a socket while receiving a SYN pkt, server will soon run out of resource for serving the true client when somebody just send SYN to sever but not response ACK to server's ACK pkt.
+
+    Though, it helps us make connection, the socket keeps the targetAddress is a problem. Because the targetAddress is linked to the server listening application. We need to bind the client with the correct port of serving application(*Client just need to know the server running at the 8080 port and makeConnection with it, but server using different port to handle multiple clients. So it is important for client socket to know which port in server is serving it and **communicate** with serving application through that port*). 
+    ```js
+    function makeConnection(targetAddr) {
+      pkt_send(SYN_pkt)
+      while True {
+        data = pkt_recv()
+        if data.source_address == targetAddr && data.pkt_kind == ACK {
+          save_server_port(data.port)
+          pkt_send(ACK_pkt)
+        }
+      }
+    }
+    ```
+
+    We deal with the problem with the idea of server sending the port to client in ACK pkt and waiting for the ACK to truly create a socket to server the client. Why creation happens when server receive from client? Because the *SYN flood* attack. If we create a socket while receiving a SYN pkt, server will soon run out of resource for serving the true client when somebody just send SYN to sever but not response ACK to server's ACK pkt. Pseudocode is below:
+    ```js
+    function listen(max) {
+      while True {
+        if serving_cnt < max {
+          data = pkt_recv()
+          if data.pkt_kind == SYN && !data.source_address in SYN_dict {
+            port = retrieve_available_port()
+            send(ACK_pkt and Port)
+            SYN_dict.save(data.source_address)
+          }
+          else if data.pkt_kind == ACK && data.source_address in SYN_dict {
+            socket = create_socket()
+            active_sockets.save(socket)
+            serving_cnt += 1
+          }
+        }
+      }
+    }
+    ```
   - **`rdp_send(data)`**
     Because we must implement the flow control and congestion control. We need to add some variables to help. For controlling the sending rate, we use `sendWindowSize` to help. It acts like the size of the receive window which tells the most size of the send pkt.
     
     For flow control, we use `buffer` and `bufferSize` to help. In our design, once the rdp_recv(bufferSize) function is invoked, at most bufferSize data is returned. So the lastByteRead is always zero and the len(rcv_buffer) is the lastByteRecv. Then the rwnd = BufferSize - (lastByteRecv - lastByteRead) = BufferSize - len(rcv_buffer). The receiver include the receive window size inside the ACK pkt, so we add **`rwnd`** field into the UDP data field. Also, when the rwnd is zero, sender must wait. We design a special flag **`WRW`**(wait receive window) to label a pkt, which is used to loop asking the receiver the rwnd when rwnd is zero. This prevents sender not knowing the receiver have buffer to get data after last ACK pkt with rwnd equals zero. And sender does not send any data to receiver because it is told receiver have no space for data and receiver will never send a new rwnd to sender.
-    
+    ```js
+    function rdp_send(data) {
+      data_pkt = fragment(data)  
+      pipeline_send(data_pkt, sendWindowSize)
+      lastACK = 0
+      lastSend = sendWindowSize + 1
+      while True {
+        d = pkt_recv()
+        if d.pkt_kind == WRW {
+          do {
+            send(WRW_pkt)
+          } while pkt_recv().rwnd == 0
+        } else if d.pkt_kind == ACK {
+          if lastACK < d.ACK_number < lastSend {
+            sendWindow[d.ACK_number - lastACK] = True
+            sendWindowSize = d.rwnd
+          } else if d. ACK_number == lastACK {
+            for win in sendWindow {
+              if win == True {
+                lastACK += 1
+              }
+            }
+            sendWindowSize = d.rwnd
+            index = lastSend
+            pipeline_send(data_pkt, sendWindowSize)
+          }
+        }
+      }
+    }
+    ```
+
     For congestion control, we need to trace a variable **`cwnd`** in sender. Also, `ssthresh` and `dupACK` helps turning the state of the sender to control the sending rate in case of the congestion in network. We set slow start state, congestion avoidance state and fast recovery state as integer number to distinguish. We handle different cwnd behavior based on the state code.
-    And we adjust the sending window size with the formula: size = min{cwnd, rwnd}. The size helps determine the pkt numbers to send in case overflow the buffer in receiver and congestion in network.
+    And we adjust the sending window size with the formula: $size = min\{cwnd, rwnd\}$. The size helps determine the pkt numbers to send in case overflow the buffer in receiver and congestion in network.
+    ```js
+    function rdp_send(data) {
+      data_pkt = fragment(data)  
+      pipeline_send(data_pkt, sendWindowSize)
+      lastACK = 0
+      lastSend = sendWindowSize + 1
+      while True {
+        d = pkt_recv()
+        if d.sourceAddr == clientAddr {
+
+          if recv_timeout || recv_dupACK || recv_normal{
+            update_cwnd()
+          }
+          if d.pkt_kind == WRW {
+            do {
+              send(WRW_pkt)
+            } while pkt_recv().rwnd == 0
+          } else if d.pkt_kind == ACK {
+            if lastACK < d.ACK_number < lastSend {
+              sendWindow[d.ACK_number - lastACK] = True
+              sendWindowSize = d.rwnd
+            } else if d. ACK_number == lastACK {
+              for win in sendWindow {
+                if win == True {
+                  lastACK += 1
+                }
+              }
+              sendWindowSize = d.rwnd
+              index = lastSend
+              pipeline_send(data_pkt, sendWindowSize)
+            }
+          }
+        }
+      }
+    }
+    ```
   - **`rdp_recv(size)`**
     It receive data from sender and return data in buffer to application. To match the flow control, we must determine if receive data from sender. So we must see the data size application wants which is the parameter `size` make space for further data. And once we send ACK pkt, the rwnd is calculated and sent, too. More interesting thing is that, we design a *buffer for buffer*. When rwnd is not zero, sender sends data. But the data sender sends makes buffer overflow. In this case, we still buffer this data, because it is a waste to abandon the pkt if we just set a *buffer for buffer*. We hide the real rwnd because it is less than zero in this case, and just send zero as rwnd to sender. And after, application invoke `rdp_recv(size)`, we will determine if the size of data make space to receive more data from sender. If yes, we get data from remote. Otherwise, we just return application the data in buffer and not get data from remote.
+    ```js
+    function rdp_recv(size) {
+      if size > buffer_size {
+        throw value_error
+      }
+      data = retrieve_from_buffer(size)
+      rwnd = calc_rwnd(buffer_size, read_pos, recv_pos)
+      if rwnd < 0 {
+        return data
+      }
+      
+      timeout_cnt = 0
+      while True {
+        data = pkt_recv()
+        if timeout {
+          if timeout_cnt < 5 {
+            timeout_cnt += 1
+          } else {
+            break
+            // End of the whole data transfer
+          }
+        }
+        if data.sourceAddr == clientAddr {
+          if data.pkt_kind == WRW {
+            rwnd = calc_rwnd(buffer_size, read_pos, recv_pos)
+            pkt_send(rwnd)
+          } else {
+            back_index = rcv_base - rcv_window_size < 0 ? 0 : rcv_base - rcv_window_size
+            if back_index <= data.seq_num < rcv_base {
+              pkt_send(ACK)
+            } else if rcv_base < data.seq_num < rcv_base + rcv_window_size {
+              buffer(data.data)
+              pkt_send(ACK)
+            } else if data.seq_num == rcv_base {
+              pkt_send(ACK)
+              update_rcv_base()
+              buffer(data.data)
+            }
+          }
+        }
+      }
+      return data = retrieve_from_buffer(size)
+    }
+    ```
 - **Packet Structure**
   This is the final pkt structure after taking the consideration above.
   <table>
@@ -174,7 +318,8 @@ RDP Protocol provides the **reliability, flow control, congestion control** like
     </tbody>
   </table>
 - **Summary**
-  More details could be found in [code](https://github.com/xwy27/LFTP/tree/master/code) with detail comments and in book, *Computer Networking, a top-down approach, six edition, James F.Kurose*. Most of the idea are inspired from the book for it gives a detail picture. Moreover, thanks to my group member, Yongqi Xiong([SiskonEmilia](https://github.com/SiskonEmilia)), who listens to my complaint and forgives my idiot fault.
+  Some other designs are not introduced because above functions are the most important to retrieve the goal, like release the socket. More details could be found in [code](https://github.com/xwy27/LFTP/tree/master/code) with detail comments and in book, ***Computer Networking, a top-down approach, six edition, James F.Kurose***. Most of the idea are inspired from the book for it gives a detail picture.
+  Moreover, thanks to my group member, **Yongqi Xiong([SiskonEmilia](https://github.com/SiskonEmilia))**, who listens to my complaint and forgives my idiot fault.
 
 ## Application Layer: LFTP
 
@@ -186,8 +331,8 @@ RDP Protocol provides the **reliability, flow control, congestion control** like
 
 
 1. Support multiple client by multiple thread function
-1. Implement the data sending(client getting file) by calling the function `RDP.rdp_send(data)`
-1. Implement the data downloading(client uploading file) by calling the function `RDP.rdp_get(size)`
+2. Implement the data sending(client getting file) by calling the function `RDP.rdp_send(data)`
+3. Implement the data downloading(client uploading file) by calling the function `RDP.rdp_get(size)`
 
 #### Multiple User
 
