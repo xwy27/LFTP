@@ -29,19 +29,23 @@ def lSend():
   with open(sys.argv[3], "rb") as f:
     client = RDP.RDP(client=True)
     
+    print("making connection")
     if not client.makeConnection(addr=hostname, port=port):
       print("Error while connecting server.")
       return
     
+    print("sending command")
     if not client.rdp_send("lsend\n" + filename + "\n" + str(length)):
       print("Error while sending command.")
       return
 
+    print("waiting for response")
     response = client.rdp_recv(1024)
     if response != "OK":
       print("Error while waiting for response! " + response)
       return
 
+    print("start delivery")
     start_time = time.time()
     while sentLength != length:
       line = f.read(262144)
