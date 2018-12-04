@@ -10,6 +10,8 @@ In this test, we try to send a 1.79 GB file and a 3 bytes file to check whether 
 
 ### Get File from Server
 
+### Local Maximum Speed
+
 ### Multiple Users
 
 ## RDP
