@@ -1,5 +1,9 @@
 # LFTP
 
+## Source Code
+
+[Github](https://github.com/xwy27/LFTP)
+
 ## Group Member
 
 |Name(姓名)|Student Number(学号)|Major(专业)|

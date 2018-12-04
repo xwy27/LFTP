@@ -73,11 +73,13 @@ The file is sent at the speed of 55 MB/s, which can milking a LAN of about 500 M
 
 ### Multiple Users
 
+To test the ability of our software to support multiple users' requests at the same time, we create two clients and make them get files at the same time:
 
+![mu](Assets/multiple-users.png)
+
+The requests are handles properly and the transfer speed is extremely high.
 
 ## RDP
-
-### Reliability
 
 ### Flow Control
 
