@@ -99,9 +99,9 @@ def lGet():
         print("Receiving %s: Done" % filename)
         break
       # Receive some data
-      metadata = client.rdp_recv(60000)
+      metadata = client.rdp_recv(20000)
       while len(metadata) % 4 != 0:
-        temp = client.rdp_recv(60000)
+        temp = client.rdp_recv(20000)
         if len(temp) == 0 :
           metadata = ""
           break
