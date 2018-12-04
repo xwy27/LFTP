@@ -27,7 +27,7 @@ class RDP():
         self.csAddr = ('', 0)  # Bind client or server address
         self.sock.settimeout(1)  # set timeout seconds
 
-        self.MSS = 20000  # Max Sending Size
+        self.MSS = 60000  # Max Sending Size
         self.sendWindowSize = 128  # max size of the sending window
         self.recvWindowSize = 128  # max size of the receiving window
         self.originSeq = 0  # for sender, the origin sequence number
@@ -72,6 +72,8 @@ class RDP():
 
         data_packets = [data[x*self.MSS:x*self.MSS+self.MSS]
                         for x in range(int(fragment_size))]
+        for i, d in enumerate(data_packets):
+            print ("Fragment-%d sent: " %i, len(d))
         lastAck = self.lastAck  # for sender to check the last ack packet in pipline
         lastSend = self.lastSend  # for sender to check the last send packet in pipline
         origin_seq = self.originSeq  # origin sequence number
@@ -332,7 +334,10 @@ class RDP():
                     back_ack = self.rcv_base - self.recvWindowSize
                     print('RCV_Packet: ', decode_seqNum)
                     print('back: ', back_ack)
-                    if (back_ack >= 0 and decode_seqNum < self.rcv_base and back_ack <= decode_seqNum):
+                    if random.randint(0, 50) < 25:
+                        print("HAHAHAHA!!!! DROP IT!!!! ", decode_seqNum)
+                    elif (back_ack >= 0 and decode_seqNum < self.rcv_base and back_ack <= decode_seqNum):
+                    # if (back_ack >= 0 and decode_seqNum < self.rcv_base and back_ack <= decode_seqNum):
                         # [rcv_base-N, rcv_bace) pkt, resend ACK in case sender repeat resending
                         print('RECV: Before window pkt, resend ack...')
                         rwnd = self.rcv_bufferSize-len(self.rcv_buffer)

@@ -29,19 +29,23 @@ def lSend():
   with open(sys.argv[3], "rb") as f:
     client = RDP.RDP(client=True)
     
+    print("making connection")
     if not client.makeConnection(addr=hostname, port=port):
       print("Error while connecting server.")
       return
     
+    print("sending command")
     if not client.rdp_send("lsend\n" + filename + "\n" + str(length)):
       print("Error while sending command.")
       return
 
+    print("waiting for response")
     response = client.rdp_recv(1024)
     if response != "OK":
       print("Error while waiting for response! " + response)
       return
 
+    print("start delivery")
     start_time = time.time()
     while sentLength != length:
       line = f.read(262144)
@@ -99,14 +103,9 @@ def lGet():
         print("Receiving %s: Done" % filename)
         break
       # Receive some data
-      metadata = client.rdp_recv(20000)
-      while len(metadata) % 4 != 0:
-        temp = client.rdp_recv(20000)
-        if len(temp) == 0 :
-          metadata = ""
-          break
-        metadata += temp
-        
+      metadata = client.rdp_recv(60000)
+      time.sleep(0.2)
+      print("Received Length: ", len(metadata))
       data = base64.b64decode(metadata.encode("ASCII"))
       if len(data) == 0:
         print("Receiving %s: Connection Error: Timeout when receiving data." % filename)
