@@ -27,7 +27,7 @@ class RDP():
         self.csAddr = ('', 0)  # Bind client or server address
         self.sock.settimeout(1)  # set timeout seconds
 
-        self.MSS = 60000  # Max Sending Size
+        self.MSS = 20000  # Max Sending Size
         self.sendWindowSize = 128  # max size of the sending window
         self.recvWindowSize = 128  # max size of the receiving window
         self.originSeq = 0  # for sender, the origin sequence number
@@ -148,7 +148,7 @@ class RDP():
                 print('SEND: ACK pkt(ACKNum:%d, windowIndex:%d, lastACK:%d, lastSend:%d)' % (
                     int(decode_ackNum), window_index, lastAck, lastSend))
                 print('SEND-ACK-BEFORE-STATE: ', self.congessState)
-                if window[window_index]: # duplicate ACK
+                if window_index < self.sendWindowSize and window[window_index]: # duplicate ACK
                     if self.congessState == utils.slowState: # dup ACK for slow start state
                         self.dupACK += 1
                         if self.dupACK == 3: # turn to fast recovery
