@@ -81,4 +81,16 @@ The file is sent at the speed of 55 MB/s, which can milking a LAN of about 500 M
 
 ### Flow Control
 
+Flow control changes the sending rate according to the receive window size in the receiver side. In the test, we deliberately set receive side application retrieves data smaller to let data buffered in the buffer and results in the change of the rwnd. We log out the rwnd received in the sender side to see whether the rwnd changed. Obviously, the rwnd changed, which means flow control works!
+
+![Flow Control](Assets/flow-control.png)
+
 ### Congestion Control
+
+Congestion Control is turing the state of sender's among slow start, congestion avoidance and fast recovery. In our application, we design these three states into three numbers, 0, 1, 2 representing slow start, congestion avoidance and fast recovery in order.
+
+We log out the sender information in the terminal to see whether the congestion control state changed. As we can see, the state at the beginning is 0, slow start and then it changed into 1, congestion avoidance state. This shows the success of the implementation of congestion control in our application.
+
+Also, it works to control the send rate while using.
+
+![Congestion Control](Assets/congestion-control.png)
