@@ -49,7 +49,7 @@ Besides sending files, getting files is well supported by our program. We use th
 
 - 3 bytes file, client side log
 
-    ![SmallFile](Assets/Getting-Client-small.png)
+    ![SmallFile](Assets/Getting-Client-Small.png)
 
 - 3 bytes file, server side log
 
