@@ -250,6 +250,9 @@ def readFile(filename, socket):
   print("Sending %s: Reading Lock Released." % filename)
 
 
+if not os.path.exists('data'):
+  os.makedirs('data')
+
 # Check if Arguments are valid
 if len(sys.argv) == 2 and sys.argv[1] == "help":
   print("Usage:")

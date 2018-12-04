@@ -122,6 +122,9 @@ def lGet():
       # Write to file
       f.write(data)
 
+if not os.path.exists('data'):
+  os.makedirs('data')
+
 if len(sys.argv) != 4:
   print("Invalid arguments.")
   print("Usage:")
