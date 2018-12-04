@@ -484,7 +484,8 @@ class RDP():
             self.csAddr = (addr, int(new_port))
             print('CONNECT: Handshake with server(%s:%s) successfully!' %
                   self.csAddr)
-            print('-'*15, ' END HANDSHAKE ', '-'*15)
+            print('-' * 15, ' END HANDSHAKE ', '-' * 15)
+            # Avoid WinError 10045
             time.sleep(0.5)
             return True
 
