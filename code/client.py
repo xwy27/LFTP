@@ -75,7 +75,7 @@ def lGet():
   else:
     port = 8080
   
-  with open(sys.argv[3], "wb+") as f:
+  with open(sys.argv[3], "wb") as f:
     client = RDP.RDP(client=True)
 
     if not client.makeConnection(addr=hostname, port=port):

@@ -142,7 +142,7 @@ def writeFile(filename, length, socket):
   # Accepted Length
   acLength = 0
 
-  with open("data/" + filename, "wb+") as f:
+  with open("data/" + filename, "wb") as f:
     start_time = time.time()
     while True:
       # User want to exit
