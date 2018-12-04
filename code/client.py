@@ -44,11 +44,13 @@ def lSend():
 
     start_time = time.time()
     while sentLength != length:
-      line = f.read(20480)
+      line = f.read(262144)
       if not client.rdp_send(base64.b64encode(line).decode("ASCII")):
         print("Error while sending file %s." % filename)
         return
       sentLength += len(line)
+      print("Sent:  %d bytes" % sentLength)
+      print("Total: %d bytes" % length)
       print("Sending file %s: %d%% done." % (filename, sentLength / length * 100))
       print("Speed: %d KB/second" % (sentLength / (time.time() - start_time + 0.01) / 1000))
     print("Sending done.")
@@ -97,9 +99,9 @@ def lGet():
         print("Receiving %s: Done" % filename)
         break
       # Receive some data
-      metadata = client.rdp_recv(40960)
+      metadata = client.rdp_recv(60000)
       while len(metadata) % 4 != 0:
-        temp = client.rdp_recv(40960)
+        temp = client.rdp_recv(60000)
         if len(temp) == 0 :
           metadata = ""
           break
@@ -110,10 +112,12 @@ def lGet():
         print("Receiving %s: Connection Error: Timeout when receiving data." % filename)
         break
       acLength += len(data)
+      print("Recv:  %d bytes" % acLength)
+      print("Total: %d byets" % length)
       print("Receiving %s: %d%% data received..." % (filename, acLength / length * 100))
+      print("Speed: %d KB/s" % (acLength / (time.time() - start_time + 0.01) / 1000))
       # Write to file
       f.write(data)
-      print("Speed: %d KB/s" % (acLength / (time.time() - start_time + 0.01) / 1000))
 
 if len(sys.argv) != 4:
   print("Invalid arguments.")

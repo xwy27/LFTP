@@ -399,12 +399,12 @@ class RDP():
                                 break
 
                         # Return at most size data
-                        data = self.rcv_buffer[:size-1]
+                        data = self.rcv_buffer[:size]
                         self.rcv_buffer = self.rcv_buffer[size:]
                         return data
                     else:
                         print("WOW, here we drop a packet!!!!", decode_seqNum)
-        data = self.rcv_buffer[:size-1]
+        data = self.rcv_buffer[:size]
         self.rcv_buffer = self.rcv_buffer[size:]
         return data
 
