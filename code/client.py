@@ -99,14 +99,9 @@ def lGet():
         print("Receiving %s: Done" % filename)
         break
       # Receive some data
-      metadata = client.rdp_recv(20000)
-      while len(metadata) % 4 != 0:
-        temp = client.rdp_recv(20000)
-        if len(temp) == 0 :
-          metadata = ""
-          break
-        metadata += temp
-        
+      metadata = client.rdp_recv(60000)
+      time.sleep(0.2)
+      print("Received Length: ", len(metadata))
       data = base64.b64decode(metadata.encode("ASCII"))
       if len(data) == 0:
         print("Receiving %s: Connection Error: Timeout when receiving data." % filename)

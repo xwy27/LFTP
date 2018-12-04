@@ -154,9 +154,9 @@ def writeFile(filename, length, socket):
         print("Receiving %s: Done" % filename)
         break
       # Receive some data
-      metadata = socket.rdp_recv(20000)
+      metadata = socket.rdp_recv(60000)
       while len(metadata) % 4 != 0:
-        temp = socket.rdp_recv(20000)
+        temp = socket.rdp_recv(60000)
         if len(temp) == 0 :
           metadata = ""
           break
@@ -234,6 +234,7 @@ def readFile(filename, socket):
     start_time = time.time()
     while sentLength != length:
       line = f.read(262144)
+      print("Sending Length: ", len(base64.b64encode(line).decode("ASCII")))
       if not socket.rdp_send(base64.b64encode(line).decode("ASCII")):
         print("Error while sending file %s." % filename)
         return
