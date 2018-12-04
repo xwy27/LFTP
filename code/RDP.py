@@ -27,7 +27,11 @@ class RDP():
         self.csAddr = ('', 0)  # Bind client or server address
         self.sock.settimeout(1)  # set timeout seconds
 
+<<<<<<< HEAD
         self.MSS = 51200  # Max Sending Size
+=======
+        self.MSS = 20000  # Max Sending Size
+>>>>>>> 40249246fbd1141db878dc081a975bc6c1a8557f
         self.sendWindowSize = 128  # max size of the sending window
         self.recvWindowSize = 128  # max size of the receiving window
         self.originSeq = 0  # for sender, the origin sequence number
@@ -148,7 +152,7 @@ class RDP():
                 print('SEND: ACK pkt(ACKNum:%d, windowIndex:%d, lastACK:%d, lastSend:%d)' % (
                     int(decode_ackNum), window_index, lastAck, lastSend))
                 print('SEND-ACK-BEFORE-STATE: ', self.congessState)
-                if window[window_index]: # duplicate ACK
+                if window_index < self.sendWindowSize and window[window_index]: # duplicate ACK
                     if self.congessState == utils.slowState: # dup ACK for slow start state
                         self.dupACK += 1
                         if self.dupACK == 3: # turn to fast recovery
@@ -399,12 +403,12 @@ class RDP():
                                 break
 
                         # Return at most size data
-                        data = self.rcv_buffer[:size-1]
+                        data = self.rcv_buffer[:size]
                         self.rcv_buffer = self.rcv_buffer[size:]
                         return data
                     else:
                         print("WOW, here we drop a packet!!!!", decode_seqNum)
-        data = self.rcv_buffer[:size-1]
+        data = self.rcv_buffer[:size]
         self.rcv_buffer = self.rcv_buffer[size:]
         return data
 

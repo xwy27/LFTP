@@ -154,9 +154,15 @@ def writeFile(filename, length, socket):
         print("Receiving %s: Done" % filename)
         break
       # Receive some data
+<<<<<<< HEAD
       metadata = socket.rdp_recv(57200)
       while len(metadata) % 4 != 0:
         temp = socket.rdp_recv(57200)
+=======
+      metadata = socket.rdp_recv(20000)
+      while len(metadata) % 4 != 0:
+        temp = socket.rdp_recv(20000)
+>>>>>>> 40249246fbd1141db878dc081a975bc6c1a8557f
         if len(temp) == 0 :
           break
         metadata += temp
@@ -166,12 +172,17 @@ def writeFile(filename, length, socket):
         print("Receiving %s: Connection Error: Timeout when receiving data." % filename)
         break
       acLength += len(data)
+<<<<<<< HEAD
       print("Accepted length: %d bytes" % acLength)
       print("Total length:    %d bytes" % length)
+=======
+      print("Recv:  %d bytes" % acLength)
+      print("Total: %d byets" % length)
+>>>>>>> 40249246fbd1141db878dc081a975bc6c1a8557f
       print("Receiving %s: %d%% data received..." % (filename, acLength / length * 100))
+      print("Speed: %d KB/s" % (acLength / (time.time() - start_time + 0.01) / 1000))
       # Write to file
       f.write(data)
-      print("Speed: %d KB/s" % (acLength / (time.time() - start_time + 0.01) / 1000))
   
   # End of writing
   print("Receiving %s: File Lock Released." % filename)
@@ -232,7 +243,11 @@ def readFile(filename, socket):
 
     start_time = time.time()
     while sentLength != length:
+<<<<<<< HEAD
       line = f.read(409600)
+=======
+      line = f.read(262144)
+>>>>>>> 40249246fbd1141db878dc081a975bc6c1a8557f
       if not socket.rdp_send(base64.b64encode(line).decode("ASCII")):
         print("Error while sending file %s." % filename)
         return
