@@ -148,7 +148,7 @@ class RDP():
                 print('SEND: ACK pkt(ACKNum:%d, windowIndex:%d, lastACK:%d, lastSend:%d)' % (
                     int(decode_ackNum), window_index, lastAck, lastSend))
                 print('SEND-ACK-BEFORE-STATE: ', self.congessState)
-                if window[window_index]: # duplicate ACK
+                if window_index < self.sendWindowSize and window[window_index]: # duplicate ACK
                     if self.congessState == utils.slowState: # dup ACK for slow start state
                         self.dupACK += 1
                         if self.dupACK == 3: # turn to fast recovery
