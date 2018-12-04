@@ -47,7 +47,7 @@ def lSend():
 
     print("start delivery")
     start_time = time.time()
-    DIV_SIZE = 60000 / 4 * 3
+    DIV_SIZE = int(60000 / 4 * 3)
     SECTION_NUM = 5
     while sentLength != length:
       line = ''
@@ -75,7 +75,7 @@ def lGet():
   else:
     port = 8080
   
-  with open(sys.argv[3], "wb") as f:
+  with open(sys.argv[3], "wb+") as f:
     client = RDP.RDP(client=True)
 
     if not client.makeConnection(addr=hostname, port=port):
