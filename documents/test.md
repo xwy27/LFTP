@@ -45,11 +45,11 @@ Besides sending files, getting files is well supported by our program. We use th
 
 - 1.79 GB file, server side log
 
-    ![LargeFile](Assets/Getting-Server-large.png)
+    ![LargeFile](Assets/Getting-server-large.png)
 
 - 3 bytes file, client side log
 
-    ![SmallFile](Assets/Getting-client-small.png)
+    ![SmallFile](Assets/Getting-Client-small.png)
 
 - 3 bytes file, server side log
 
